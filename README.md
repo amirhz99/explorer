@@ -15,14 +15,10 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
-git remote add origin https://mybasket.top:4444/amirhz/digital-assets.git
+git remote add origin https://github.com/amirhz99/explorer.git
 git branch -M main
 git push -uf origin main
 ```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://mybasket.top:4444/amirhz/digital-assets/-/settings/integrations)
 
 ## Collaborate with your team
 

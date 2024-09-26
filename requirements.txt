@@ -1,0 +1,14 @@
+fastapi
+fastapi-mail
+uvicorn[standard]
+python-dotenv
+pydantic-settings
+pydantic-extra-types
+phonenumbers
+pycountry
+motor
+beanie
+setuptools
+telethon
+cryptg
+pillow

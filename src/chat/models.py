@@ -27,7 +27,7 @@ class GroupTypes(str, Enum):
     
 class Group(Document):
     __type__: str = GroupTypes.private
-    id: Indexed(int, unique=True) # type: ignore
+    _id: Indexed(int, unique=True) # type: ignore
     name: str
     members: List[Link[TGUser]]
     is_active: bool = True
@@ -40,7 +40,7 @@ class Group(Document):
 
 class MegaGroup(Document):
     __type__: str = GroupTypes.public
-    id: Indexed(int, unique=True) # type: ignore
+    _id: Indexed(int, unique=True) # type: ignore
     name: str
     username: str
     is_active: bool = True

@@ -1,2 +1,2 @@
-from .models import ChannelParent,PublicChannel,PrivateChannel
-from .views import channel_router
+from .models import *  # noqa: F403
+from .views import channel_router  # noqa: F401

@@ -13,7 +13,6 @@ from beanie import (
     after_event,
 )
 from pydantic import Field
-from src.user.models import User
 from typing import TYPE_CHECKING
 
 class OperationsStatus(str, Enum):

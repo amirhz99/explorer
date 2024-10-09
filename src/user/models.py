@@ -13,7 +13,7 @@ from pydantic import Field
 
 
 class TGUser(Document):
-    id: Indexed(int, unique=True)  # type: ignore
+    _id: Indexed(int, unique=True)  # type: ignore
     first_name: str
     last_name: str | None
     username: str | None

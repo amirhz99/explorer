@@ -28,7 +28,7 @@ class ChannelTypes(str, Enum):
     
 class PublicChannel(Document):
     __type__: str = ChannelTypes.private
-    id: Indexed(int, unique=True) # type: ignore
+    _id: Indexed(int, unique=True) # type: ignore
     name: str
     members: List[Link[TGUser]]
     is_active: bool = True
@@ -41,7 +41,7 @@ class PublicChannel(Document):
 
 class PrivateChannel(Document):
     __type__: str = ChannelTypes.public
-    id: Indexed(int, unique=True) # type: ignore
+    _id: Indexed(int, unique=True) # type: ignore
     name: str
     username: str
     members: List[Link[TGUser]]

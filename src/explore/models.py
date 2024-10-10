@@ -20,7 +20,7 @@ class OperationsStatus(str, Enum):
     in_process = "in_process"
     done = "done"
     cancel = "cancel"
-    
+
 class Search(Document):
     primary: str
     secondary: List[str]
@@ -30,7 +30,6 @@ class Search(Document):
 
     class Settings:
         name = "searches"
-        
 
 class Explore(Document):
     search: Link[Search]

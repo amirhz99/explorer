@@ -1,2 +1,2 @@
-from .models import TGUser
-from .views import tg_user_router
+from .models import *  # noqa: F403
+from .views import tg_user_router  # noqa: F401

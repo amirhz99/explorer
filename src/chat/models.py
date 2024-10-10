@@ -7,10 +7,12 @@ from beanie import (
     Indexed,
     Link,
     Insert,
+    Update,
     Replace,
     Save,
     SaveChanges,
     after_event,
+    before_event,
 )
 from pydantic import Field
 from telethon.types import Channel, Chat, ChatFull
@@ -23,7 +25,7 @@ class ChatTypes(str, Enum):
 
 
 class TGChat(Document):
-    _id: Indexed(int, unique=True)  # type: ignore
+    tg_id: Indexed(int, unique=True)  # type: ignore
     type: ChatTypes
 
     title: str = Field(..., description="Title of the chat")
@@ -100,10 +102,13 @@ class TGChat(Document):
 
     invitation_links: Optional[List[str]] = Field(None, description="Invitation links")
     members: Optional[List[Link[TGUser]]] = Field(None, description="Chat members list")
-    scrapers: List[int]
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
 
     class Settings:
         name = "chats"
+        
+        @before_event(Update)
+        def update_time(self):
+            self.updated_at = datetime.now()

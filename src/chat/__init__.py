@@ -1,2 +1,2 @@
-from .models import ChatParent,Group,MegaGroup
-from .views import chat_router
+from .models import *  # noqa: F403
+from .views import chat_router  # noqa: F401

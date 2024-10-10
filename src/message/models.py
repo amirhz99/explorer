@@ -1,8 +1,7 @@
 from __future__ import annotations
 from beanie import Document, Link
-from src.chat.models import Group,MegaGroup
-from src.channel import PrivateChannel,PublicChannel
+from src.chat import TGChat
 
 class Message(Document):
     id:int
-    chat:Link[Group|MegaGroup|PrivateChannel|PublicChannel]
+    chat:Link[TGChat]

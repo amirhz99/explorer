@@ -42,7 +42,7 @@ async def create_search(
 
 
 @explore_router.get("/{search_id}/status")
-async def get_search_status(search_id: PydanticObjectId) -> Dict[str, any]:
+async def get_search_status(search_id: PydanticObjectId) -> JSONResponse:
     # Fetch the Search document by ID
     search = await Search.get(search_id)
     if not search:

@@ -16,7 +16,9 @@ from beanie import (
 )
 from pydantic import Field
 from typing import TYPE_CHECKING
+from src.chat.models import TGChat
 from src.account.models import TGAccount
+from src.user.models import TGBot, TGUser
 
 
 class OperationsStatus(str, Enum):
@@ -66,6 +68,7 @@ class Explore(Document):
     in_progress: List[Link[TGAccount]] | None = (
         None  # TGAccounts currently processing the task
     )
+    result: List[Link[TGChat]|Link[TGUser]|Link[TGBot]]
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)

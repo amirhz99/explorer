@@ -29,9 +29,11 @@ async def search_chats(task: Explore, account: TGAccount, client: TelegramClient
         
         # If the user is a bot, insert bot data
         if user.bot:
-            await insert_bot_data(user, full_user)
+            tg_bot = await insert_bot_data(user, full_user)
+            await task.push("result", tg_bot)
         else:
-            await insert_user_data(user,full_user)
+            tg_user = await insert_user_data(user,full_user)
+            await task.push(Explore.result, tg_user)
 
 
     # Iterate over search results (groups, channels)
@@ -39,20 +41,23 @@ async def search_chats(task: Explore, account: TGAccount, client: TelegramClient
 
         full_chat = (await client(GetFullChannelRequest(channel=chat))).full_chat
         
-        await insert_chat_data(chat,full_chat)
-
+        tg_chat = await insert_chat_data(chat,full_chat)
+        await task.push("result", tg_chat)
+        
         linked_chat_id = getattr(full_chat, "linked_chat_id", None)
         if linked_chat_id:
             linked_chat = await client.get_entity(linked_chat_id)
             linked_full_chat = (await client(GetFullChannelRequest(channel=linked_chat))).full_chat
-            await insert_chat_data(linked_chat,linked_full_chat)
+            tg_chat = await insert_chat_data(linked_chat,linked_full_chat)
+            await task.push(Explore.result, tg_chat)
 
         # deactivated = getattr(chat, 'deactivated', None)
         migrated_to = getattr(chat, "migrated_to", None)
         if migrated_to:
             migrated_to_chat = await client.get_entity(migrated_to)
             migrated_to_full_chat = (await client(GetFullChannelRequest(channel=migrated_to_chat))).full_chat
-            await insert_chat_data(migrated_to_chat,migrated_to_full_chat)
+            tg_chat = await insert_chat_data(migrated_to_chat,migrated_to_full_chat)
+            await task.push(Explore.result, tg_chat)
 
         # can_view_participants = getattr(chat, "can_view_participants", False)
         # if can_view_participants:

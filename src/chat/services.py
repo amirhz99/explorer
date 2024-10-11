@@ -4,7 +4,7 @@ from beanie.operators import Set
 
 async def insert_chat_data(chat, full_chat):
 
-    await TGChat.find_one(TGChat.tg_id == chat.id).upsert(
+    return await TGChat.find_one(TGChat.tg_id == chat.id).upsert(
         Set(
             {
                 TGChat.title: chat.title,

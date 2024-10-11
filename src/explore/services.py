@@ -1,37 +1,14 @@
 from datetime import datetime
-from beanie import PydanticObjectId
-from starlette.responses import JSONResponse
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Query,
-    Request,
-    status,
-    UploadFile,
-)
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import SearchRequest
-from telethon.tl.types import Chat, Channel
+from src.account.services import start_telegram_client
 from src.account.models import TGAccount
 from explore.models import Explore, OperationsStatus
 from explore.services import search_chats
 from src.chat.services import insert_chat_data
-from src.chat.models import TGChat
-from src.user.models import TGBot, TGUser
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.users import GetFullUserRequest
-from telethon.tl.types import (
-    UserStatusOnline,
-    UserStatusOffline,
-    UserStatusRecently,
-    UserStatusLastWeek,
-    UserStatusLastMonth,
-)
-from telethon import functions
 from src.task import scheduler
-
-
 from src.user.services import insert_bot_data, insert_user_data
 
 api_id = 2040
@@ -40,7 +17,7 @@ client = TelegramClient("sessions/60103274631", api_id, api_hash)
 
 async def search_chats(task: Explore, account: TGAccount, client: TelegramClient):  # noqa: F811
     
-    query = task.search
+    query = task.text
 
     # Perform search in Telegram
     search_results = await client(SearchRequest(q=query, limit=10000))
@@ -66,30 +43,21 @@ async def search_chats(task: Explore, account: TGAccount, client: TelegramClient
 
         linked_chat_id = getattr(full_chat, "linked_chat_id", None)
         if linked_chat_id:
-            pass
+            linked_chat = await client.get_entity(linked_chat_id)
+            linked_full_chat = (await client(GetFullChannelRequest(channel=linked_chat))).full_chat
+            await insert_chat_data(linked_chat,linked_full_chat)
 
         # deactivated = getattr(chat, 'deactivated', None)
         migrated_to = getattr(chat, "migrated_to", None)
         if migrated_to:
-            pass
+            migrated_to_chat = await client.get_entity(migrated_to)
+            migrated_to_full_chat = (await client(GetFullChannelRequest(channel=migrated_to_chat))).full_chat
+            await insert_chat_data(migrated_to_chat,migrated_to_full_chat)
 
-        can_view_participants = getattr(chat, "can_view_participants", False)
-        if can_view_participants:
-            async for participant in client.iter_participants(chat):
-                pass
-
-
-async def start_telegram_client(account: TGAccount) -> TelegramClient:
-    client = TelegramClient(account.session, account.api_id, account.api_hash)
-    await client.connect()
-
-    if not await client.is_user_authorized():
-        print(f"Account {account.tg_id} is not authorized. Please log in again.")
-        await client.disconnect()
-        return None
-
-    print(f"Account {account.tg_id} connected to Telegram successfully.")
-    return client
+        # can_view_participants = getattr(chat, "can_view_participants", False)
+        # if can_view_participants:
+        #     async for participant in client.iter_participants(chat):
+        #         pass
 
 async def pick_pending_task_for_account(account: TGAccount):
     task = await Explore.find(

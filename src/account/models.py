@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from beanie import Document, Link
+from beanie import Document, Link, Update, before_event
 from pydantic import Field
 
 class TGAccount(Document):
@@ -14,3 +14,7 @@ class TGAccount(Document):
     created_at: datetime = Field(default_factory=datetime.now)
     class Settings:
         name = "tg_accounts"
+        
+        @before_event(Update)
+        def update_time(self):
+            self.updated_at = datetime.now()

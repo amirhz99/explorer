@@ -1,2 +1,2 @@
-from .models import Search,Explore
-from .views import explore_router
+from .models import *  # noqa: F403
+from .views import explore_router  # noqa: F401

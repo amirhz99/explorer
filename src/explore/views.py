@@ -1,3 +1,6 @@
+import asyncio
+from datetime import datetime
+from typing import Any, Dict
 from beanie import PydanticObjectId
 from starlette.responses import JSONResponse
 from fastapi import (
@@ -9,84 +12,114 @@ from fastapi import (
     status,
     UploadFile,
 )
-from telethon import TelegramClient
-from telethon.tl.functions.contacts import SearchRequest
-from telethon.tl.types import Chat, Channel
-from src.chat.services import insert_chat_data
-from src.chat.models import TGChat
-from src.user.models import TGBot, TGUser
-from telethon.tl.functions.channels import GetFullChannelRequest
-from telethon.tl.functions.users import GetFullUserRequest
-from telethon.tl.types import (
-    UserStatusOnline,
-    UserStatusOffline,
-    UserStatusRecently,
-    UserStatusLastWeek,
-    UserStatusLastMonth,
-)
-from telethon import functions
-
-from src.user.services import insert_bot_data, insert_user_data
+from src.explore.models import Explore, OperationsStatus
+from src.explore.services import search_chats
+from src.task import scheduler
 
 explore_router = APIRouter()
 
-api_id = 2040
-api_hash = "b18441a1ff607e10a989891a5462e627"
-client = TelegramClient("sessions/60103274631", api_id, api_hash)
 
+accounts_data: Dict[str, Dict[str, Any]] = {
+    "account1": {"in_use": False, "lock": asyncio.Lock()},
+    "account2": {"in_use": False, "lock": asyncio.Lock()},
+    "account3": {"in_use": False, "lock": asyncio.Lock()},
+}
+account_semaphore = asyncio.Semaphore(3)
+# async with account_semaphore():
 
+async def process_task(task_id):
+    task = await Explore.get(task_id)
+    if not task or task.status != OperationsStatus.pending:
+        return
 
-# Helper function to search globally and retrieve chat information
-async def search_chats(query: str):
+    task.status = OperationsStatus.in_process
+    task.updated_at = datetime.now()
+    await task.save_changes()
 
-    await client.start()
+    search_tasks = []
 
-    me = await client.get_me()
+    
 
-    # Perform search in Telegram
-    search_results = await client(SearchRequest(q=query, limit=100))
+    available_accounts = [
+        name for name, data in accounts_data.items() if not data["in_use"]
+    ]
 
-    # Iterate over search results (users, bots)
-    for user in search_results.users:
-        
-        full_user = (await client(GetFullUserRequest(user))).full_user
-        
-        # If the user is a bot, insert bot data
-        if user.bot:
-            await insert_bot_data(user, full_user)
+    selected_accounts = []
+
+    if isinstance(task.accounts, int):
+        if task.use_all_accounts:
+            accounts_to_use = min(task.accounts, len(accounts_data))
+            selected_accounts = [name for name, data in accounts_data.items()][
+                :accounts_to_use
+            ]
         else:
-            await insert_user_data(user,full_user)
+            accounts_to_use = min(task.accounts, len(available_accounts))
+            selected_accounts = available_accounts[:accounts_to_use]
+    else:
+        selected_accounts = task.accounts
+
+    if not selected_accounts:
+        print(
+            "No available accounts to process the task. Marking task as pending again."
+        )
+        task.status = OperationsStatus.pending
+        await task.save_changes()
+        return
+
+    for account_name in selected_accounts:
+        async with accounts_data[account_name]["lock"]:
+
+            accounts_data[account_name]["in_use"] = True
+
+            try:
+                search_tasks.append(search_chats(account_name, task.text))
+            except Exception as e:
+                print(f"Error processing with account {account_name}: {e}")
+            finally:
+                accounts_data[account_name]["in_use"] = False
+
+    await asyncio.gather(*search_tasks)
+
+    task.status = OperationsStatus.done
+    task.updated_at = datetime.now()
+    await task.save_changes()
 
 
-    # Iterate over search results (groups, channels)
-    for chat in search_results.chats:
-
-        full_chat = (await client(GetFullChannelRequest(channel=chat))).full_chat
-        
-        await insert_chat_data(chat,full_chat)
-
-        linked_chat_id = getattr(full_chat, "linked_chat_id", None)
-        if linked_chat_id:
-            pass
-
-        # deactivated = getattr(chat, 'deactivated', None)
-        migrated_to = getattr(chat, "migrated_to", None)
-        if migrated_to:
-            pass
-
-        can_view_participants = getattr(chat, "can_view_participants", False)
-        if can_view_participants:
-            async for participant in client.iter_participants(chat):
-                pass
+@scheduler.scheduled_job("interval", seconds=5)
+async def scheduler_job():
+    pending_tasks = (
+        await Explore.find(Explore.status == OperationsStatus.pending)
+        .sort(Explore.created_at)
+        .to_list()
+    )
+    for task in pending_tasks:
+        scheduler.add_job(process_task, args=[task.id])
 
 
-    await client.disconnect()
+async def reset_in_process_tasks():
+    in_process_tasks = await Explore.find(
+        Explore.status == OperationsStatus.in_process
+    ).to_list()
+    for task in in_process_tasks:
+        task.status = OperationsStatus.pending
+        await task.save()
+    print("Reset all in_process tasks to pending status.")
 
 
-# FastAPI GET route to search for chats globally
-@explore_router.get("/chats/")
+# FastAPI routes
+@explore_router.get("/")
 async def search_telegram_chats(
-    query: str = Query(..., description="Search term for Telegram chats")
+    query: str = Query(..., description="Search term for Telegram chats"),
+    accounts: int = Query(1, description="Number of accounts to use"),
+    use_all: bool = Query(False, description="Use all available accounts"),
 ):
-    await search_chats(query)
-    return {"query": query}
+    task = Explore(
+        text=query,
+        accounts=accounts,
+        use_all_accounts=use_all,
+        status=OperationsStatus.pending,
+    )
+    await task.insert()  # Insert task into the database
+    return JSONResponse(
+        content={"message": "Task added to queue. Searching..."}, status_code=200
+    )

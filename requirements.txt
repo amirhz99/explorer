@@ -12,3 +12,4 @@ setuptools
 telethon
 cryptg
 pillow
+apscheduler

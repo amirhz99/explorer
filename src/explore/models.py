@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Union
 from beanie import (
     BackLink,
     Document,
@@ -35,6 +35,9 @@ class Explore(Document):
     search: Link[Search]
     text: str
     status: OperationsStatus.pending
+    accounts: Union[int|List[str]]  # Can be int or list of account names
+    use_all_accounts: bool = False
+    is_primary: bool = False
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)

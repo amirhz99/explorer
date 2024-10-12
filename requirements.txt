@@ -13,3 +13,4 @@ telethon
 cryptg
 pillow
 apscheduler
+python-multipart

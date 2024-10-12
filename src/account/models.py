@@ -1,14 +1,55 @@
 from __future__ import annotations
 from datetime import datetime
-from beanie import Document, Link, Update, before_event
+from typing import Any, List, Optional
+from beanie import Document, Link, Update, before_event,Indexed
 from pydantic import Field
 
 class TGAccount(Document):
-    tg_id: int  # Telegram account ID
-    session: str  # The session string required by Telethon (session file name)
-    api_id: int  # API ID for Telethon
-    api_hash: str  # API Hash for Telethon
-    json: str| None = None  # Additional account configuration in JSON
+    tg_id: Optional[int]
+    session_string: Indexed(str,unique=True) # type: ignore
+    api_id: int  
+    api_hash: str 
+    phone_number: Optional[str]
+    
+    # Basic user information
+    first_name: Optional[str]
+    last_name: Optional[str]
+    username: Optional[str]
+    date_of_birth: Optional[str]  # You could parse this as `datetime` if needed
+    date_of_birth_integrity: Optional[str]
+    is_premium: Optional[bool]
+    has_profile_pic: Optional[bool]
+    sex: Optional[int]
+
+    # System and application details
+    sdk: Optional[str]
+    device: Optional[str]
+    app_version: Optional[str]
+    system_lang_pack: Optional[str]
+    lang_pack: Optional[str]
+    lang_code: Optional[str]
+
+    # Two-factor authentication and security
+    twoFA: Optional[str]
+
+    # Session and spam control
+    spamblock: Optional[str]
+    spamblock_end_date: Optional[str]
+    stats_spam_count: Optional[int]
+    stats_invites_count: Optional[int]
+
+    # Dates and times
+    last_connect_date: Optional[datetime]
+    session_created_date: Optional[datetime]
+    register_time: Optional[int]
+    last_check_time: Optional[int]
+
+    # Proxy and network information
+    proxy: Optional[List[Any]]
+    ipv6: Optional[bool] = False
+    tz_offset: Optional[int]
+
+    # Program-related information
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)

@@ -85,7 +85,7 @@ async def reset_in_process_tasks():
     # Find all tasks that are still pending and have accounts in 'in_progress'
     tasks = await Explore.find(
         Explore.status == OperationsStatus.pending,
-        Explore.in_progress.size.gt(0),  # Only tasks with in-progress accounts
+        {"$where": "this.in_progress.length > 0"}
     ).to_list()
 
     # Clean up the in_progress list for each task

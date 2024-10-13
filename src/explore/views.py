@@ -12,7 +12,11 @@ from fastapi import (
     status,
     UploadFile,
 )
+from src.chat.models import TGChat
+from src.explore.schemas import Pagination, TGBotResponse, TGChatResponse, TGUserResponse
+from src.explore.utils import get_match_score, merge_and_deduplicate, paginate
 from src.explore.models import Explore, OperationsStatus, Search
+from src.user.models import TGBot, TGUser
 
 explore_router = APIRouter()
 
@@ -78,7 +82,7 @@ async def get_search_status(search_id: PydanticObjectId) -> JSONResponse:
 
     # Calculate percentage of completion
     completed_percentage = (
-        (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
+        ((completed_tasks+failed_tasks) / total_tasks) * 100 if total_tasks > 0 else 0
     )
 
     # Determine search status based on explore statuses
@@ -92,7 +96,7 @@ async def get_search_status(search_id: PydanticObjectId) -> JSONResponse:
         search_status = search.status
 
     search.status = search_status
-    search.save_changes()
+    await search.save_changes()
 
     # Prepare the response
     return JSONResponse(
@@ -109,4 +113,82 @@ async def get_search_status(search_id: PydanticObjectId) -> JSONResponse:
             },
         },
         status_code=200,
+    )
+
+
+@explore_router.get("/{search_id}", response_model=Pagination)
+async def get_search_results(
+    search_id: PydanticObjectId,
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1)
+):
+    search = await Search.get(search_id)
+    if not search:
+        raise HTTPException(status_code=404, detail="Search not found")
+
+    explores = await Explore.find(Explore.search.id == search_id,fetch_links=True).to_list()
+
+    chats = [link for explore in explores for link in explore.results if isinstance(link, TGChat)]
+    users = [link for explore in explores for link in explore.results if isinstance(link, TGUser)]
+    bots = [link for explore in explores for link in explore.results if isinstance(link, TGBot)]
+
+    real_time_results = [
+        {**TGChatResponse(**chat.model_dump()).model_dump()} for chat in chats
+    ] + [
+        {**TGUserResponse(**user.model_dump()).model_dump()} for user in users
+    ] + [
+        {**TGBotResponse(**bot.model_dump()).model_dump()} for bot in bots
+    ]
+
+    # Search historical data using improved query logic
+    primary_and_secondaries = [search.primary] + search.secondaries
+
+    matching_chats = await TGChat.find(
+        {"$or": [
+            {"title": {"$in": primary_and_secondaries}},
+            {"about": {"$in": primary_and_secondaries}}
+        ]}
+    ).to_list()
+
+    matching_users = await TGUser.find(
+        {"$or": [
+            {"first_name": {"$in": primary_and_secondaries}},
+            {"last_name": {"$in": primary_and_secondaries}},
+            {"about": {"$in": primary_and_secondaries}}
+        ]}
+    ).to_list()
+
+    matching_bots = await TGBot.find(
+        {"$or": [
+            {"first_name": {"$in": primary_and_secondaries}},
+            {"last_name": {"$in": primary_and_secondaries}},
+            {"about": {"$in": primary_and_secondaries}}
+        ]}
+    ).to_list()
+
+    historical_results = [
+        {**TGChatResponse(**chat.model_dump()).model_dump()} for chat in matching_chats
+    ] + [
+        {**TGUserResponse(**user.model_dump()).model_dump()} for user in matching_users
+    ] + [
+        {**TGBotResponse(**bot.model_dump()).model_dump()} for bot in matching_bots
+    ]
+
+    # Merge, deduplicate, and sort results based on match score
+    merged_results = merge_and_deduplicate(real_time_results, historical_results)
+    sorted_results = sorted(merged_results, key=lambda x: get_match_score(x, search))
+
+    # Apply pagination
+    paginated_results, total_count, total_pages, next_page, prev_page = paginate(
+        sorted_results, page, limit
+    )
+
+    return Pagination(
+        data=paginated_results,
+        page=page,
+        limit=limit,
+        total_count=total_count,
+        total_pages=total_pages,
+        next_page=next_page,
+        previous_page=prev_page
     )

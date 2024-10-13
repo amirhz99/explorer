@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from src.routers import api_router
 from src.models import initial_models
-from src.task import scheduler
+from src.tasks import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

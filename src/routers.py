@@ -3,7 +3,7 @@ from src.user import tg_user_router
 from src.message import message_router
 from src.explore import explore_router
 from src.chat import chat_router
-from src.task import task_router
+from src.tasks import task_router
 from src.account import account_router
 
 api_router = APIRouter()

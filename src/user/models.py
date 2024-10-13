@@ -77,6 +77,7 @@ class TGUser(Document):
         # photo
     class Settings:
         name = "users"
+        use_state_management = True
         union_doc = TekegramUserParent
         
         @before_event(Update)
@@ -108,6 +109,7 @@ class TGBot(Document):
         # photo
     class Settings:
         name = "bots"
+        use_state_management = True
         union_doc = TekegramUserParent
         
         @before_event(Update)

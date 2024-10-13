@@ -15,9 +15,9 @@ async def initial_models():
             TGUser,
             TGBot,
             TGAccount,
-            Search,
             Explore,
+            Search,
         ],
     )
 
-    await reset_in_process_tasks()
+    # await reset_in_process_tasks()

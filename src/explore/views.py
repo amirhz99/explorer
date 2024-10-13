@@ -20,21 +20,30 @@ explore_router = APIRouter()
 @explore_router.get("/")
 async def create_search(
     primary: str,
-    secondary: Optional[List[str]] = Query(
+    secondaries: Optional[List[str]] = Query(
         default=[]
     ),  # Optional list with default value of empty list
     real_time: bool = False,
-    repeat_time: Optional[int] = Query(1, description="Number of accounts to use"),
-    is_active: bool = True,
+    accounts_count: Optional[int] = Query(1, description="Number of accounts to use"),
 ):
     search = Search(
         primary=primary,
-        secondary=secondary,
+        secondaries=secondaries,
         real_time=real_time,
-        repeat_time=repeat_time,
-        is_active=is_active,
+        accounts_count=accounts_count,
     )
     await search.insert()
+
+    if real_time:
+        task = Explore(
+            search=search,
+            text=primary,
+            accounts_count=accounts_count,
+            status=OperationsStatus.pending,
+            is_primary=True,
+        )
+        await task.insert()
+    
     return JSONResponse(
         content={"message": "Searching...", "search_id": str(search.id)},
         status_code=200,

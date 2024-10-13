@@ -13,7 +13,7 @@ async def insert_user_data(user, full_user):
         else None
     )
 
-    return await TGUser.find_one(TGUser.tg_id == user.id).upsert(
+    await TGUser.find_one(TGUser.tg_id == user.id).upsert(
         Set(
             {
                 TGUser.first_name: user.first_name,
@@ -109,13 +109,14 @@ async def insert_user_data(user, full_user):
         ),
     )
 
+    return await TGUser.find_one(TGUser.tg_id == user.id)
 
 async def insert_bot_data(user, full_user):
     bot_info = full_user.bot_info
     if not bot_info:
         return
 
-    return await TGBot.find_one(TGBot.tg_id == user.id).upsert(
+    await TGBot.find_one(TGBot.tg_id == user.id).upsert(
         Set(
             {
                 TGBot.first_name: user.first_name,
@@ -158,3 +159,5 @@ async def insert_bot_data(user, full_user):
             menu_button=getattr(bot_info, "menu_button", None),
         ),
     )
+    
+    return await TGBot.find_one(TGBot.tg_id == user.id)

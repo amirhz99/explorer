@@ -107,7 +107,8 @@ class TGChat(Document):
     created_at: datetime = Field(default_factory=datetime.now)
 
     class Settings:
-        name = "chats"
+        name = "tg_chats"
+        use_state_management = True
         
         @before_event(Update)
         def update_time(self):

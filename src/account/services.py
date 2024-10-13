@@ -4,7 +4,7 @@ from src.account.models import TGAccount
 from telethon.sessions import StringSession
 
 async def start_telegram_client(account: TGAccount) -> TelegramClient:
-    client = TelegramClient(account.session, account.api_id, account.api_hash)
+    client = TelegramClient(StringSession(account.session_string), account.api_id, account.api_hash)
     await client.connect()
 
     if not await client.is_user_authorized():

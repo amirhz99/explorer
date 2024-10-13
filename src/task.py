@@ -4,11 +4,14 @@ from apscheduler.jobstores.mongodb import MongoDBJobStore
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, status
 from pymongo import MongoClient
+from src.explore.models import Explore, OperationsStatus
+from src.explore.services import process_task_for_account
+from src.account.models import TGAccount
 from app.config import settings
 
 jobstores = {
     # 'default': MemoryJobStore()
-    'default': MongoDBJobStore(database='task_manager_db', collection='jobs', client=MongoClient(settings.MONGODB_URI))
+    'default': MongoDBJobStore(database='task_manager_db', collection='explorer_jobs', client=MongoClient(settings.MONGODB_URI))
 }
 
 scheduler = AsyncIOScheduler(jobstores=jobstores) 
@@ -18,7 +21,22 @@ scheduler = AsyncIOScheduler(jobstores=jobstores)
 # @scheduler.scheduled_job('interval', seconds=5)
 # def interval_task_test():
 #     print('interval task is run...')
-
+@scheduler.scheduled_job("interval", seconds=60)
+async def schedule_jobs_for_accounts():
+    accounts = await TGAccount.find(TGAccount.is_active == True).to_list()  # noqa: E712
+    task = await Explore.find_one(Explore.status == OperationsStatus.pending,)
+    if not task:
+        return
+    
+    for account in accounts:
+        job_id = f"job_for_{account.id}"
+        if scheduler.get_job(job_id) is None:
+            scheduler.add_job(
+                process_task_for_account,
+                args=[account],
+                id=job_id,
+                replace_existing=False
+            )
 
 # # use when you want to run the job periodically at certain time(s) of day
 # @scheduler.scheduled_job('cron', hour=3, minute=30)

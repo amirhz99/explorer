@@ -3,11 +3,13 @@ from pydantic import BaseModel, Field
 from typing import Any, List, Optional, TypeVar, Generic
 from datetime import datetime
 
+
 class TaskSummary(BaseModel):
     completed: int
     failed: int
     in_process: int
     pending: int
+
 
 class SearchStatusResponse(BaseModel):
     search_id: str
@@ -15,19 +17,24 @@ class SearchStatusResponse(BaseModel):
     completed_percentage: float
     total_tasks: int
     tasks_summary: TaskSummary
-    
+
+
 class TGChatResponse(BaseModel):
     tg_id: int
     type: str
     title: str
     about: Optional[str]
-    chat_type: str
     username: Optional[str]
+    usernames: Optional[List[str]]
     participants_count: Optional[int]
+    creation_date: Optional[datetime]
+    level: Optional[int]
+    emoji_status: Optional[str]
+    forum: Optional[bool] = False
+    linked_chat_id: Optional[int]
     verified: bool
-    scam: bool
-    broadcast: bool
     source: Optional[str] = None
+
 
 class TGUserResponse(BaseModel):
     tg_id: int
@@ -36,12 +43,21 @@ class TGUserResponse(BaseModel):
     last_name: Optional[str]
     about: Optional[str]
     username: Optional[str]
+    usernames: Optional[List[str]]
     phone: Optional[str]
     premium: bool
+    emoji_status: Optional[str]
+    status: str
+    was_online: Optional[datetime]
+    birthday: Optional[datetime]
+    contact_require_premium: bool = False
+    personal_channel_id: Optional[int]
+    personal_channel_message: Optional[str]
+    business_location: Optional[str]
+    business_work_hours: Optional[str]
     verified: bool
-    scam: bool
-    restricted: bool
     source: Optional[str] = None
+
 
 class TGBotResponse(BaseModel):
     tg_id: int
@@ -50,12 +66,15 @@ class TGBotResponse(BaseModel):
     last_name: Optional[str]
     about: Optional[str]
     username: Optional[str]
-    verified: bool
+    bot_active_users: Optional[int]
+    description_document: Optional[str]
     description: Optional[str]
+    verified: bool
     source: Optional[str] = None
 
+
 class Pagination(BaseModel):
-    data: List[TGChatResponse|TGUserResponse|TGBotResponse]
+    data: List[TGChatResponse | TGUserResponse | TGBotResponse]
     page: int
     limit: int
     total_count: int

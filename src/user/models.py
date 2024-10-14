@@ -25,7 +25,7 @@ class TGUser(Document):
     first_name: Optional[str] = Field(None, description="First name")
     last_name: Optional[str] = Field(None, description="Last name")
     username: Optional[str] = Field(None, description="Username")
-    usernames: Optional[str] = Field(None, description="Additional usernames")
+    usernames: Optional[List[str]] = Field(None, description="Additional usernames")
     phone: Optional[str] = Field(None, description="Phone number")
     lang_code: Optional[str] = Field(None, description="Language code")
     premium: bool = Field(False, description="Indicates if the user is premium")

@@ -170,11 +170,9 @@ async def get_search_results(
         {**TGBotResponse(**bot.model_dump()).model_dump()} for bot in matching_bots
     ]
 
-    # Merge, deduplicate, and sort results based on match score
     merged_results = merge_and_deduplicate(real_time_results, historical_results)
     sorted_results = sorted(merged_results, key=lambda x: get_match_score(x, search))
 
-    # Apply pagination
     paginated_results, total_count, total_pages, next_page, prev_page = paginate(
         sorted_results, page, limit
     )

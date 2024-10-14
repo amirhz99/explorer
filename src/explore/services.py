@@ -11,10 +11,6 @@ from telethon.tl.functions.users import GetFullUserRequest
 from src.user.services import insert_bot_data, insert_user_data
 from beanie.operators import Push
 
-api_id = 2040
-api_hash = "b18441a1ff607e10a989891a5462e627"
-client = TelegramClient("sessions/60103274631", api_id, api_hash)
-
 async def search_chats(task: Explore, account: TGAccount, client: TelegramClient):  # noqa: F811
     
     query = task.text

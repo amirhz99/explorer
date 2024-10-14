@@ -2,6 +2,20 @@
 from pydantic import BaseModel, Field
 from typing import Any, List, Optional, TypeVar, Generic
 from datetime import datetime
+
+class TaskSummary(BaseModel):
+    completed: int
+    failed: int
+    in_process: int
+    pending: int
+
+class SearchStatusResponse(BaseModel):
+    search_id: str
+    status: str
+    completed_percentage: float
+    total_tasks: int
+    tasks_summary: TaskSummary
+    
 class TGChatResponse(BaseModel):
     tg_id: int
     type: str

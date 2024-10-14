@@ -13,7 +13,7 @@ from fastapi import (
     UploadFile,
 )
 from src.chat.models import TGChat
-from src.explore.schemas import Pagination, TGBotResponse, TGChatResponse, TGUserResponse
+from src.explore.schemas import Pagination, SearchStatusResponse, TGBotResponse, TGChatResponse, TGUserResponse, TaskSummary
 from src.explore.utils import get_match_score, merge_and_deduplicate, paginate
 from src.explore.models import Explore, OperationsStatus, Search
 from src.user.models import TGBot, TGUser
@@ -54,8 +54,8 @@ async def create_search(
     )
 
 
-@explore_router.get("/{search_id}/status")
-async def get_search_status(search_id: PydanticObjectId) -> JSONResponse:
+@explore_router.get("/{search_id}/status", response_model=SearchStatusResponse)
+async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse:
     # Fetch the Search document by ID
     search = await Search.get(search_id)
     if not search:
@@ -98,21 +98,17 @@ async def get_search_status(search_id: PydanticObjectId) -> JSONResponse:
     search.status = search_status
     await search.save_changes()
 
-    # Prepare the response
-    return JSONResponse(
-        content={
-            "search_id": str(search.id),
-            "status": search_status,
-            "completed_percentage": completed_percentage,
-            "total_tasks": total_tasks,
-            "tasks_summary": {
-                "completed": completed_tasks,
-                "failed": failed_tasks,
-                "in_process": in_process_tasks,
-                "pending": pending_tasks,
-            },
-        },
-        status_code=200,
+    return SearchStatusResponse(
+        search_id=str(search.id),
+        status=search_status,
+        completed_percentage=completed_percentage,
+        total_tasks=total_tasks,
+        tasks_summary=TaskSummary(
+            completed=completed_tasks,
+            failed=failed_tasks,
+            in_process=in_process_tasks,
+            pending=pending_tasks,
+        ),
     )
 
 

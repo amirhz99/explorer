@@ -18,10 +18,10 @@ from src.explore.utils import get_match_score, merge_and_deduplicate, paginate
 from src.explore.models import Explore, OperationsStatus, Search
 from src.user.models import TGBot, TGUser
 
-explore_router = APIRouter()
+search_router = APIRouter()
 
 
-@explore_router.get("/")
+@search_router.get("/")
 async def create_search(
     primary: str,
     secondaries: Optional[List[str]] = Query(
@@ -54,7 +54,7 @@ async def create_search(
     )
 
 
-@explore_router.get("/{search_id}/status", response_model=SearchStatusResponse)
+@search_router.get("/{search_id}/status", response_model=SearchStatusResponse)
 async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse:
     # Fetch the Search document by ID
     search = await Search.get(search_id)
@@ -112,7 +112,7 @@ async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse
     )
 
 
-@explore_router.get("/{search_id}", response_model=Pagination)
+@search_router.get("/{search_id}", response_model=Pagination)
 async def get_search_results(
     search_id: PydanticObjectId,
     page: int = Query(1, ge=1),

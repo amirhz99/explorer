@@ -3,8 +3,10 @@ from beanie import PydanticObjectId
 from typing import List, Dict, Any, Optional, Tuple, TypeVar
 from src.explore.models import Search, Explore, TGChat, TGUser, TGBot
 from math import ceil
+import re
 
 T = TypeVar("T")  # Generic type for paginated data
+
 
 def paginate(
     data: List[T], page: int, limit: int
@@ -46,37 +48,43 @@ def get_match_score(item: Dict[str, Any], search: Search) -> Tuple[int, int]:
     primary = search.primary.lower()
     secondaries = [s.lower() for s in search.secondaries]
 
-    # Check matches in title/first_name/last_name (higher priority)
-    title_match = (
-        primary in item.get("title", "").lower()
-        or primary in item.get("first_name", "").lower()
-        or (
-            primary in item.get("last_name", "").lower()
-            if item.get("last_name", "")
-            else ""
-        )
+    primary_in_main_fields = (
+        primary in (item.get("title", "") or "").lower()
+        or primary in (item.get("first_name", "") or "").lower()
+        or primary in (item.get("last_name", "") or "").lower()
+        or primary in (item.get("username", "") or "").lower()
+        or any(primary in u.lower() for u in (item.get("usernames") if item.get("usernames") else []))
     )
-    secondary_matches = [
+
+    secondary_in_main_fields = [
         s
         for s in secondaries
-        if s in item.get("title", "").lower()
-        or s in item.get("first_name", "").lower()
-        or (s in item.get("last_name", "").lower() if item.get("last_name", "") else "")
+        if (
+            s in (item.get("title", "") or "").lower()
+            or s in (item.get("first_name", "") or "").lower()
+            or s in (item.get("last_name", "") or "").lower()
+            or s in (item.get("username", "") or "").lower()
+            or any(s in u.lower() for u in (item.get("usernames") if item.get("usernames") else []))
+        )
     ]
 
-    # Check matches in "about" (lower priority)
-    about_match = primary in item.get("about", "").lower() if item.get("about", "") else ""
-    about_secondary_matches = [
-        s for s in secondaries if (s in item.get("last_name", "").lower() if item.get("last_name", "") else "")
+    primary_in_about = primary in (item.get("about", "") or "").lower()
+    secondaries_in_about = [
+        s for s in secondaries if (s in (item.get("about", "") or "").lower())
     ]
 
-    # Calculate priority: Primary > Secondary > About matches
-    if title_match:
-        return (
-            0,
-            -len(secondary_matches),
-        )  # Higher priority for primary in title/first_name/last_name
-    elif about_match:
-        return (1, -len(about_secondary_matches))  # Lower priority for primary in about
+    if primary_in_main_fields:
+        return (0, -len(secondary_in_main_fields))  
+    elif primary_in_about:
+        return (1, -len(secondaries_in_about))
+    elif secondary_in_main_fields:
+        return (2, -len(secondary_in_main_fields))
+    elif secondaries_in_about:
+        return (2, -len(secondaries_in_about))
     else:
-        return (2, 0)  # No match
+        return (3,0)
+
+
+def is_english(text: str) -> bool:
+    """Check if the given text contains only English characters."""
+    return bool(re.match(r"^[a-zA-Z0-9_ ]*$", text))

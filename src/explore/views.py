@@ -14,7 +14,7 @@ from fastapi import (
 )
 from src.chat.models import TGChat
 from src.explore.schemas import Pagination, SearchStatusResponse, TGBotResponse, TGChatResponse, TGUserResponse, TaskSummary
-from src.explore.utils import get_match_score, merge_and_deduplicate, paginate
+from src.explore.utils import get_match_score, is_english, merge_and_deduplicate, paginate
 from src.explore.models import Explore, OperationsStatus, Search
 from src.user.models import TGBot, TGUser
 
@@ -139,28 +139,47 @@ async def get_search_results(
     # Search historical data using improved query logic
     primary_and_secondaries = [search.primary] + search.secondaries
 
-    matching_chats = await TGChat.find(
-        {"$or": [
+    
+    if all(is_english(term) for term in primary_and_secondaries):
+        chat_search_fields = [
+            {"title": {"$in": primary_and_secondaries}},
+            {"username": {"$in": primary_and_secondaries}},
+            {"usernames": {"$in": primary_and_secondaries}},
+            {"about": {"$in": primary_and_secondaries}}
+        ]
+        user_search_fields = [
+            {"first_name": {"$in": primary_and_secondaries}},
+            {"last_name": {"$in": primary_and_secondaries}},
+            {"username": {"$in": primary_and_secondaries}},
+            {"usernames": {"$in": primary_and_secondaries}},
+            {"about": {"$in": primary_and_secondaries}}
+        ]
+        bot_search_fields = [
+            {"first_name": {"$in": primary_and_secondaries}},
+            {"last_name": {"$in": primary_and_secondaries}},
+            {"username": {"$in": primary_and_secondaries}},
+            {"about": {"$in": primary_and_secondaries}}
+        ]
+    else:
+        chat_search_fields = [
             {"title": {"$in": primary_and_secondaries}},
             {"about": {"$in": primary_and_secondaries}}
-        ]}
-    ).to_list()
-
-    matching_users = await TGUser.find(
-        {"$or": [
+        ]
+        user_search_fields = [
             {"first_name": {"$in": primary_and_secondaries}},
             {"last_name": {"$in": primary_and_secondaries}},
             {"about": {"$in": primary_and_secondaries}}
-        ]}
-    ).to_list()
-
-    matching_bots = await TGBot.find(
-        {"$or": [
+        ]
+        bot_search_fields = [
             {"first_name": {"$in": primary_and_secondaries}},
             {"last_name": {"$in": primary_and_secondaries}},
             {"about": {"$in": primary_and_secondaries}}
-        ]}
-    ).to_list()
+        ]
+        
+        
+    matching_chats = await TGChat.find({"$or": chat_search_fields}).to_list()
+    matching_users = await TGUser.find({"$or": user_search_fields}).to_list()
+    matching_bots = await TGBot.find({"$or": bot_search_fields}).to_list()
 
     historical_results = [
         {**TGChatResponse(**chat.model_dump()).model_dump()} for chat in matching_chats

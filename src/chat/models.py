@@ -59,7 +59,7 @@ class TGChat(Document):
     )
 
     level: Optional[int] = Field(None, description="Level of the chat")
-    emoji_status: Optional[str] = Field(None, description="Emoji status of the chat")
+    emoji_status: Optional[int] = Field(None, description="Emoji status of the chat")
 
     stories_unavailable: bool = Field(
         False, description="Are stories unavailable for the chat?"

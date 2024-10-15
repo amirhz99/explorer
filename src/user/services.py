@@ -19,11 +19,19 @@ async def insert_user_data(user, full_user):
                 TGUser.first_name: user.first_name,
                 TGUser.last_name: getattr(user, "last_name", None),
                 TGUser.username: getattr(user, "username", None),
-                TGUser.usernames: ((item.username for item in user.usernames) if getattr(user, "usernames", False) else None),
+                TGUser.usernames: (
+                    (item.username for item in user.usernames)
+                    if getattr(user, "usernames", False)
+                    else None
+                ),
                 TGUser.phone: getattr(user, "phone", None),
                 TGUser.lang_code: getattr(user, "lang_code", None),
                 TGUser.premium: getattr(user, "premium", False),
-                TGUser.emoji_status: getattr(user, "emoji_status", None),
+                TGUser.emoji_status: (
+                    user.emoji_status.document_id
+                    if getattr(user, "emoji_status", None)
+                    else None
+                ),
                 TGUser.status: status,
                 TGUser.was_online: was_online,
                 TGUser.support: getattr(user, "support", False),
@@ -73,11 +81,19 @@ async def insert_user_data(user, full_user):
             first_name=user.first_name,
             last_name=getattr(user, "last_name", None),
             username=getattr(user, "username", None),
-            usernames= ((item.username for item in user.usernames) if getattr(user, "usernames", False) else None),
+            usernames=(
+                (item.username for item in user.usernames)
+                if getattr(user, "usernames", False)
+                else None
+            ),
             phone=getattr(user, "phone", None),
             lang_code=getattr(user, "lang_code", None),
             premium=getattr(user, "premium", False),
-            emoji_status=getattr(user, "emoji_status", None),
+            emoji_status=(
+                user.emoji_status.document_id
+                if getattr(user, "emoji_status", None)
+                else None
+            ),
             status=status,
             was_online=was_online,
             support=getattr(user, "support", False),
@@ -113,6 +129,7 @@ async def insert_user_data(user, full_user):
 
     return await TGUser.find_one(TGUser.tg_id == user.id)
 
+
 async def insert_bot_data(user, full_user):
     bot_info = full_user.bot_info
     if not bot_info:
@@ -127,9 +144,6 @@ async def insert_bot_data(user, full_user):
                 TGBot.about: getattr(full_user, "about", None),
                 TGBot.bot_active_users: getattr(user, "bot_active_users", None),
                 TGBot.description: getattr(bot_info, "description", None),
-                TGBot.description_document: getattr(
-                    bot_info, "description_document", None
-                ),
                 TGBot.user_id: getattr(bot_info, "user_id", None),
                 TGBot.privacy_policy_url: getattr(bot_info, "privacy_policy_url", None),
                 TGBot.bot_info_version: getattr(user, "bot_info_version", None),
@@ -138,7 +152,11 @@ async def insert_bot_data(user, full_user):
                     if bot_info.commands
                     else None
                 ),
-                TGBot.menu_button: getattr(bot_info, "menu_button", None),
+                TGBot.menu_button: (
+                    getattr(bot_info.menu_button, "url", None)
+                    if getattr(bot_info, "menu_button", None)
+                    else None
+                ),
             }
         ),
         on_insert=TGBot(
@@ -149,7 +167,6 @@ async def insert_bot_data(user, full_user):
             about=getattr(full_user, "about", None),
             bot_active_users=getattr(user, "bot_active_users", None),
             description=getattr(bot_info, "description", None),
-            description_document=getattr(bot_info, "description_document", None),
             user_id=getattr(bot_info, "user_id", None),
             privacy_policy_url=getattr(bot_info, "privacy_policy_url", None),
             bot_info_version=getattr(user, "bot_info_version", None),
@@ -158,8 +175,12 @@ async def insert_bot_data(user, full_user):
                 if bot_info.commands
                 else None
             ),
-            menu_button=getattr(bot_info, "menu_button", None),
+            menu_button=(
+                getattr(bot_info.menu_button, "url", None)
+                if getattr(bot_info, "menu_button", None)
+                else None
+            ),
         ),
     )
-    
+
     return await TGBot.find_one(TGBot.tg_id == user.id)

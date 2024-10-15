@@ -29,7 +29,7 @@ class TGChatResponse(BaseModel):
     participants_count: Optional[int]
     creation_date: Optional[datetime]
     level: Optional[int]
-    emoji_status: Optional[str]
+    emoji_status: Optional[int]
     forum: Optional[bool] = False
     linked_chat_id: Optional[int]
     verified: bool
@@ -46,8 +46,8 @@ class TGUserResponse(BaseModel):
     usernames: Optional[List[str]]
     phone: Optional[str]
     premium: bool
-    emoji_status: Optional[str]
-    status: str
+    emoji_status: Optional[int]
+    status: Optional[str]
     was_online: Optional[datetime]
     birthday: Optional[datetime]
     contact_require_premium: bool = False
@@ -67,7 +67,6 @@ class TGBotResponse(BaseModel):
     about: Optional[str]
     username: Optional[str]
     bot_active_users: Optional[int]
-    description_document: Optional[str]
     description: Optional[str]
     verified: bool
     source: Optional[str] = None

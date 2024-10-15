@@ -29,8 +29,8 @@ class TGUser(Document):
     phone: Optional[str] = Field(None, description="Phone number")
     lang_code: Optional[str] = Field(None, description="Language code")
     premium: bool = Field(False, description="Indicates if the user is premium")
-    emoji_status: Optional[str] = Field(None, description="Emoji status")
-    status: str = Field(..., description="Current status")
+    emoji_status: Optional[int] = Field(None, description="Emoji status")
+    status: Optional[str] = Field(None, description="Current status")
     was_online: Optional[datetime] = Field(None, description="Last seen online")
     support: bool = Field(False, description="Indicates if the user is support")
     verified: bool = Field(False, description="Indicates if the user is verified")
@@ -107,6 +107,8 @@ class TGBot(Document):
     # Skip items:
         # full_user.bot_info.description_photo
         # photo
+        # description_document
+        
     class Settings:
         name = "bots"
         use_state_management = True

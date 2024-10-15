@@ -13,55 +13,45 @@ from fastapi import (
     UploadFile,
 )
 from src.chat.models import TGChat
-from src.explore.schemas import Pagination, SearchStatusResponse, TGBotResponse, TGChatResponse, TGUserResponse, TaskSummary
+from src.explore.schemas import Pagination, SearchRequest, SearchStatusResponse, TGBotResponse, TGChatResponse, TGUserResponse, TaskSummary
 from src.explore.utils import get_match_score, is_english, merge_and_deduplicate, paginate
 from src.explore.models import Explore, OperationsStatus, Search
 from src.user.models import TGBot, TGUser
 
 search_router = APIRouter()
 
-
-@search_router.get("/")
-async def create_search(
-    primary: str,
-    secondaries: Optional[List[str]] = Query(
-        default=[]
-    ),  # Optional list with default value of empty list
-    real_time: bool = False,
-    accounts_count: Optional[int] = Query(1, description="Number of accounts to use"),
-):
+@search_router.post("/")
+async def create_search(request: SearchRequest):
     search = Search(
-        primary=primary,
-        secondaries=secondaries,
-        real_time=real_time,
-        accounts_count=accounts_count,
+        primary=request.primary,
+        secondaries=request.secondaries,
+        real_time=request.real_time,
+        accounts_count=request.accounts_count,
     )
     await search.insert()
 
-    if real_time:
+    if request.real_time:
         task = Explore(
             search=search,
-            text=primary,
-            accounts_count=accounts_count,
+            text=request.primary,
+            accounts_count=request.accounts_count,
             status=OperationsStatus.pending,
             is_primary=True,
         )
         await task.insert()
-    
+
     return JSONResponse(
         content={"message": "Searching...", "search_id": str(search.id)},
         status_code=200,
     )
 
-
 @search_router.get("/{search_id}/status", response_model=SearchStatusResponse)
 async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse:
-    # Fetch the Search document by ID
+
     search = await Search.get(search_id)
     if not search:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    # Fetch all Explore documents linked to the Search
     explores = await Explore.find(Explore.search.id == search.id).to_list()
 
     if not explores:
@@ -69,7 +59,6 @@ async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse
             status_code=404, detail="No Explore tasks found for this Search"
         )
 
-    # Count Explore tasks based on status
     total_tasks = len(explores)
     completed_tasks = sum(
         1 for exp in explores if exp.status == OperationsStatus.completed
@@ -80,12 +69,10 @@ async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse
     )
     pending_tasks = sum(1 for exp in explores if exp.status == OperationsStatus.pending)
 
-    # Calculate percentage of completion
     completed_percentage = (
         ((completed_tasks+failed_tasks) / total_tasks) * 100 if total_tasks > 0 else 0
     )
 
-    # Determine search status based on explore statuses
     if completed_tasks == total_tasks:
         search_status = OperationsStatus.completed
     elif failed_tasks == total_tasks:
@@ -136,7 +123,6 @@ async def get_search_results(
         {**TGBotResponse(**bot.model_dump()).model_dump()} for bot in bots
     ]
 
-    # Search historical data using improved query logic
     primary_and_secondaries = [search.primary] + search.secondaries
 
     

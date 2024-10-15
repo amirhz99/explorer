@@ -80,3 +80,10 @@ class Pagination(BaseModel):
     total_pages: int
     next_page: Optional[int] = None
     previous_page: Optional[int] = None
+
+
+class SearchRequest(BaseModel):
+    primary: str
+    secondaries: Optional[List[str]] = []  
+    real_time: bool = False
+    accounts_count: Optional[int] = 1

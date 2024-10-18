@@ -29,14 +29,26 @@ async def schedule_jobs_for_accounts():
         return
     
     for account in accounts:
+        
         job_id = f"job_for_{account.id}"
-        if scheduler.get_job(job_id) is None:
+
+        # Check if job exists; skip if it does
+        if scheduler.get_job(job_id) is not None:
+            print(f"Job {job_id} already exists. Skipping...")
+            continue
+
+        try:
+            # Add the job only if it doesn't already exist
             scheduler.add_job(
                 process_task_for_account,
                 args=[account],
                 id=job_id,
                 replace_existing=False
             )
+            print(f"Job {job_id} added successfully.")
+        except Exception as e:
+            print(f"Failed to add job {job_id}: {e}")
+            
 
 # # use when you want to run the job periodically at certain time(s) of day
 # @scheduler.scheduled_job('cron', hour=3, minute=30)

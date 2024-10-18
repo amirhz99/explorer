@@ -2,28 +2,62 @@ from datetime import datetime
 from beanie import Link
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import SearchRequest
+from src.explore.utils import generate_words_from_title,pre_characters
 from src.account.services import start_telegram_client
 from src.account.models import TGAccount
-from src.explore.models import Explore, OperationsStatus, Search
+from src.explore.models import Explore, OperationsStatus,OperationType
+from src.search.models import Search
 from src.chat.services import insert_chat_data
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.users import GetFullUserRequest
 from src.user.services import insert_bot_data, insert_user_data
 from beanie.operators import Push
+from beanie import PydanticObjectId
 
-async def search_chats(task: Explore, account: TGAccount, client: TelegramClient):  # noqa: F811
+async def create_explore_task(request: PydanticObjectId|Search,query:str=None):
     
-    query = task.text
-
-    # Perform search in Telegram
+    if isinstance(request,PydanticObjectId):
+        request = await Search.get(request)
+        if not request:
+            return
+    
+    if query and query not in request.primary: 
+        is_primary = False
+        texts = generate_words_from_title(query, request.primary)
+    else:
+        is_primary = True
+        texts = [f'{request.primary.strip().lower()} {character}'.strip().lower() for character in pre_characters]
+    
+    for text in texts:
+        explore = await Explore.find_one(Explore.request.id == request.id,Explore.target == text)
+        if explore:
+            continue
+        
+        new_task = Explore(
+            request=request,
+            target=text,
+            status=OperationsStatus.pending,
+            is_primary=is_primary,
+        )
+        await new_task.insert()
+        
+        # for text in request.secondaries:
+        #     new_text = (text).replace(request.primary,text)
+        #     new_task = Explore(
+        #         search=request,
+        #         text=new_text,
+        #         status=OperationsStatus.pending,
+        #     )
+        #     await new_task.insert()
+    
+async def explore_search(task: Explore, client: TelegramClient):
+    
+    query = task.target
     search_results = await client(SearchRequest(q=query, limit=10000))
 
-    # Iterate over search results (users, bots)
     for user in search_results.users:
         
         full_user = (await client(GetFullUserRequest(user))).full_user
-        
-        # If the user is a bot, insert bot data
         if user.bot:
             tg_bot = await insert_bot_data(user, full_user)
             await task.update(Push({Explore.results: tg_bot}))
@@ -32,25 +66,16 @@ async def search_chats(task: Explore, account: TGAccount, client: TelegramClient
             await task.update(Push({Explore.results: tg_user}))
 
 
-    # Iterate over search results (groups, channels)
     for chat in search_results.chats:
         
         if task.is_primary:
-            await task.fetch_link('search')
-            for text in task.search.secondaries:
-                new_text = (chat.title).replace(task.text,text)
-                new_task = Explore(
-                    search=task.search,
-                    text=new_text,
-                    status=OperationsStatus.pending,
-                )
-                await new_task.insert()
+            await task.fetch_link('request')
+            await create_explore_task(request=task.request,query=chat.title)
                 
         full_chat = (await client(GetFullChannelRequest(channel=chat))).full_chat
-        
         tg_chat = await insert_chat_data(chat,full_chat)
         await task.update(Push({Explore.results: tg_chat}))
-        
+
         linked_chat_id = getattr(full_chat, "linked_chat_id", None)
         if linked_chat_id:
             linked_chat = await client.get_entity(linked_chat_id)
@@ -75,11 +100,11 @@ async def pick_pending_task_for_account(account: TGAccount):
     
     task = await Explore.find(
         Explore.status == OperationsStatus.pending,
-        {"accounts": {"$nin": [account.id]}},  # Ensure account.id is not in accounts
-        {"in_progress": {"$nin": [account.id]}},  # Ensure account.id is not in in_progress
+        {"completed_accounts": {"$nin": [account.id]}},  
+        {"processing_accounts": {"$nin": [account.id]}},
         {
-            "$expr": {  # Compare length of in_progress with accounts_count
-                "$lt": [{"$size": "$in_progress"}, "$accounts_count"]
+            "$expr": {
+                "$lt": [{"$size": "$processing_accounts"}, "$accounts_count"]
             }
         },
     ).sort("created_at").first_or_none()
@@ -101,30 +126,30 @@ async def process_task_for_account(account: TGAccount):
             break
         
         try:
-            task.in_progress.append(account)
-            task.updated_at = datetime.now()
+            task.processing_accounts.append(account)
             await task.save_changes()
-            print(f"Processing task {task.text} for account {account.tg_id}...")
+            print(f"Processing task {task.target} for account {account.tg_id}...")
             
-        
-            await search_chats(task, account, client)
+            match task.operation:
+                case OperationType.search:
+                    await explore_search(task, client)
+                case _:
+                    print("Operation Type Error")
 
-            task.accounts.append(account)
-            task.in_progress.remove(account)
-            task.updated_at = datetime.now()
+            task.completed_accounts.append(account)
+            task.processing_accounts.remove(account)
 
-            all_accounts_count = await TGAccount.find(TGAccount.is_active == True).count() # noqa: E712
+            all_accounts_count = await TGAccount.find(TGAccount.is_active == True).count()
 
-            if len(task.accounts) >= task.accounts_count or len(task.accounts) == all_accounts_count:
+            if len(task.completed_accounts) >= task.accounts_count or len(task.completed_accounts) == all_accounts_count:
                 task.status = OperationsStatus.completed
-                print(f"Task {task.text} completed by {account.tg_id}.")
+                print(f"Task {task.target} completed by {account.tg_id}.")
             
             await task.save_changes()
 
         except Exception as e:
             task.status = OperationsStatus.failed
-            task.in_progress.remove(account)
-            task.updated_at = datetime.now()
+            task.processing_accounts.remove(account)
             await task.save_changes()
             print(f"Task failed for account {account.tg_id}: {str(e)}")
 

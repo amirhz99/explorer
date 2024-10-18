@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from enum import Enum
-from typing import List, Union
+from typing import List, Union,TYPE_CHECKING
 from beanie import (
     BackLink,
     Document,
@@ -15,11 +15,14 @@ from beanie import (
     after_event,
     before_event,
 )
-from pydantic import Field
+from pydantic import Field,BaseModel
 from typing import TYPE_CHECKING
 from src.chat.models import TGChat
 from src.account.models import TGAccount
 from src.user.models import TGBot, TGUser
+
+if TYPE_CHECKING:
+    from src.search.models import Search
 
 
 class OperationsStatus(str, Enum):
@@ -28,45 +31,25 @@ class OperationsStatus(str, Enum):
     completed = "completed"
     failed = "failed"
 
-class Search(Document):
-    primary: str
-    secondaries: List[str] = []
-    real_time: bool = False
-    repeat_time: int | None = 1
-    accounts_count: int | None = 1
-    status: OperationsStatus = OperationsStatus.pending
-    is_active: bool = True
-    updated_at: datetime = Field(default_factory=datetime.now)
-    created_at: datetime = Field(default_factory=datetime.now)
 
-    class Settings:
-        name = "searches"
-        use_state_management = True
-
-        @before_event(Update)
-        def update_time(self):
-            self.updated_at = datetime.now()
-
-        # @after_event(Insert)
-        # async def create_base_explore(self):
-        #     if self.real_time:
-        #         task = Explore(
-        #             search=self,
-        #             text=self.primary,
-        #             accounts_count=self.accounts_count,
-        #             status=OperationsStatus.pending,
-        #             is_primary=True,
-        #         )
-        #         await task.insert()
-                
+class OperationType(str, Enum):
+    search = "SEARCH"
+    get_participants = "GET_PARTICIPANTS"
+    get_pinned_messages = "GET_PINNED_MESSAGES"
+    get_link_messages = "GET_LINK_MESSAGES"
+    
+                         
 class Explore(Document):
-    search: Link[Search]
-    text: str
+    request: Link["Search"] = None
+    target: str|int
+    operation: OperationType = OperationType.search
     status: OperationsStatus = OperationsStatus.pending
     accounts_count: int | None = 1
+    priority: int = 1
     is_primary: bool = False
-    accounts: List[Link[TGAccount]]  = []  # Completed TGAccount references
-    in_progress: List[Link[TGAccount]] = []
+    assigned_accounts: List[Link["TGAccount"]] = []
+    completed_accounts: List[Link["TGAccount"]] = []
+    processing_accounts: List[Link["TGAccount"]] = []
     results: List[Link[TGChat]|Link[TGUser]|Link[TGBot]] = []
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -74,6 +57,7 @@ class Explore(Document):
 
     class Settings:
         name = "explores"
+        is_root = True
         use_state_management = True
 
         @before_event(Update)
@@ -82,20 +66,20 @@ class Explore(Document):
             
 
 async def reset_in_process_tasks():
-    # Find all tasks that are still pending and have accounts in 'in_progress'
+    # Find all tasks that are still pending and have accounts in 'processing_accounts'
     tasks = await Explore.find(
         Explore.status == OperationsStatus.pending,
-        {"$where": "this.in_progress.length > 0"}
+        {"$where": "this.processing_accounts.length > 0"}
     ).to_list()
 
     # Clean up the in_progress list for each task
     for task in tasks:
         print(
-            f"Recovering task {task.text} - clearing in-progress accounts: {task.in_progress}"
+            f"Recovering task {task.target} - clearing processing_accounts accounts: {task.processing_accounts}"
         )
-        task.in_progress.clear()  # Remove all in-progress accounts
+        task.processing_accounts.clear()  # Remove all processing_accounts accounts
 
         # Optionally, log a retry action or take any further actions for these tasks
         await task.save_changes()  # Save the updated task to the database
 
-    print(f"Recovery complete. Cleared in-progress accounts for {len(tasks)} tasks.")
+    print(f"Recovery complete. Cleared processing_accounts accounts for {len(tasks)} tasks.")

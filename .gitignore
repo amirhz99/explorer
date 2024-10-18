@@ -168,3 +168,6 @@ static
 
 #account sessions
 sessions
+
+#migrations
+migrations

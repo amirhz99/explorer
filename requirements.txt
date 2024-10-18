@@ -14,3 +14,4 @@ cryptg
 pillow
 apscheduler
 python-multipart
+emoji

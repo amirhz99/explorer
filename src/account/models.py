@@ -1,9 +1,10 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from beanie import Document, Link, Update, before_event,Indexed
 from pydantic import Field
-
+from src.explore.models import OperationType    
+    
 class TGAccount(Document):
     tg_id: Optional[int]
     session_string: Indexed(str,unique=True) # type: ignore
@@ -48,7 +49,8 @@ class TGAccount(Document):
     proxy: Optional[List[Any]]
     ipv6: Optional[bool] = False
     tz_offset: Optional[int]
-
+    
+    flood_wait: Optional[Dict[OperationType,int]] = {}
     # Program-related information
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)

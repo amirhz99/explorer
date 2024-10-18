@@ -2,7 +2,7 @@ from datetime import datetime
 from beanie import Link
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import SearchRequest
-from src.explore.utils import generate_words_from_title,pre_characters
+from src.explore.utils import generate_words_from_title,pre_characters, unique_list
 from src.account.services import start_telegram_client
 from src.account.models import TGAccount
 from src.explore.models import Explore, OperationsStatus,OperationType
@@ -10,6 +10,7 @@ from src.search.models import Search
 from src.chat.services import insert_chat_data
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.users import GetFullUserRequest
+from telethon.errors import FloodWaitError
 from src.user.services import insert_bot_data, insert_user_data
 from beanie.operators import Push
 from beanie import PydanticObjectId
@@ -23,11 +24,14 @@ async def create_explore_task(request: PydanticObjectId|Search,query:str=None):
     
     if query and query not in request.primary: 
         is_primary = False
-        texts = generate_words_from_title(query, request.primary)
+        texts = generate_words_from_title(query, request.primary,use_pre_characters=False)
     else:
         is_primary = True
-        texts = [f'{request.primary.strip().lower()} {character}'.strip().lower() for character in pre_characters]
-    
+        seconderies = unique_list(request.secondaries)
+        primeries_texts = [f'{request.primary.strip().lower()} {character}'.strip().lower() for character in pre_characters]
+        seconderies_texts = [(f'{request.primary.strip().lower()} {text} {character}'.strip().lower() for character in pre_characters) for text in seconderies]
+        texts = primeries_texts + seconderies_texts
+        
     for text in texts:
         explore = await Explore.find_one(Explore.request.id == request.id,Explore.target == text)
         if explore:
@@ -40,20 +44,12 @@ async def create_explore_task(request: PydanticObjectId|Search,query:str=None):
             is_primary=is_primary,
         )
         await new_task.insert()
-        
-        # for text in request.secondaries:
-        #     new_text = (text).replace(request.primary,text)
-        #     new_task = Explore(
-        #         search=request,
-        #         text=new_text,
-        #         status=OperationsStatus.pending,
-        #     )
-        #     await new_task.insert()
     
 async def explore_search(task: Explore, client: TelegramClient):
     
     query = task.target
     search_results = await client(SearchRequest(q=query, limit=10000))
+
 
     for user in search_results.users:
         
@@ -147,6 +143,14 @@ async def process_task_for_account(account: TGAccount):
             
             await task.save_changes()
 
+        except FloodWaitError as e:
+            task.status = OperationsStatus.failed
+            task.processing_accounts.remove(account)
+            await task.save_changes()
+            account.flood_wait[task.operation] = e.seconds
+            print(f"Task failed for account {account.tg_id}: {str(e)}")
+
+                        
         except Exception as e:
             task.status = OperationsStatus.failed
             task.processing_accounts.remove(account)

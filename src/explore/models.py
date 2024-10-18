@@ -18,11 +18,12 @@ from beanie import (
 from pydantic import Field,BaseModel
 from typing import TYPE_CHECKING
 from src.chat.models import TGChat
-from src.account.models import TGAccount
 from src.user.models import TGBot, TGUser
 
 if TYPE_CHECKING:
     from src.search.models import Search
+    from src.account.models import TGAccount
+
 
 
 class OperationsStatus(str, Enum):

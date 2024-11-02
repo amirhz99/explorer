@@ -17,7 +17,6 @@ from beanie import (
 )
 from pydantic import Field
 
-from src.explore.models import Explore
 
 
 class OperationsStatus(str, Enum):
@@ -57,4 +56,4 @@ class Search(Document):
         #         )
         #         await explore.insert()
 
-Explore.model_rebuild()
+# Explore.model_rebuild()

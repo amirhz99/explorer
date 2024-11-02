@@ -4,7 +4,6 @@ from telethon.tl.types import (
 )
 from beanie.operators import Set
 
-
 async def insert_user_data(user, full_user):
     status = type(user.status).__name__ if user.status else None
     was_online = (

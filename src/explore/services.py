@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from beanie import Link
 from telethon import TelegramClient
 from telethon.tl.functions.contacts import SearchRequest
@@ -14,6 +14,7 @@ from telethon.errors import FloodWaitError
 from src.user.services import insert_bot_data, insert_user_data
 from beanie.operators import Push
 from beanie import PydanticObjectId
+import asyncio
 
 async def create_explore_task(request: PydanticObjectId|Search,query:str=None):
     
@@ -94,18 +95,49 @@ async def explore_search(task: Explore, client: TelegramClient):
 
 async def pick_pending_task_for_account(account: TGAccount):
     
-    task = await Explore.find(
+    current_time = datetime.now(timezone.utc)
+
+    def is_operation_blocked(operation_type: OperationType) -> bool:
+        # Safely fetch end time from flood_wait or return None
+        end_time = (account.flood_wait or {}).get(operation_type.value)
+
+        # If end_time is None or empty, the operation isn't blocked
+        if not end_time:
+            return False
+        
+        # Check if the current time is still within the flood wait period
+        return current_time > end_time
+
+    # Fetch all pending tasks sorted by creation date
+    tasks_cursor = Explore.find(
         Explore.status == OperationsStatus.pending,
-        {"completed_accounts": {"$nin": [account.id]}},  
-        {"processing_accounts": {"$nin": [account.id]}},
+        {"completed_accounts": {"$nin": [account]}},
+        {"processing_accounts": {"$nin": [account]}},
         {
             "$expr": {
                 "$lt": [{"$size": "$processing_accounts"}, "$accounts_count"]
             }
         },
-    ).sort("created_at").first_or_none()
+    ).sort("created_at")
 
-    return task
+    async for task in tasks_cursor:
+        if not is_operation_blocked(task.operation):
+            return task  # Return the first eligible task
+
+    return None
+    
+    # task = await Explore.find(
+    #     Explore.status == OperationsStatus.pending,
+    #     {"completed_accounts": {"$nin": [account.id]}},  
+    #     {"processing_accounts": {"$nin": [account.id]}},
+    #     {
+    #         "$expr": {
+    #             "$lt": [{"$size": "$processing_accounts"}, "$accounts_count"]
+    #         }
+    #     },
+    # ).sort("created_at").first_or_none()
+
+    # return task
 
 async def process_task_for_account(account: TGAccount):
 
@@ -142,12 +174,13 @@ async def process_task_for_account(account: TGAccount):
                 print(f"Task {task.target} completed by {account.tg_id}.")
             
             await task.save_changes()
-
+            await asyncio.sleep(1)
         except FloodWaitError as e:
             task.status = OperationsStatus.failed
             task.processing_accounts.remove(account)
             await task.save_changes()
-            account.flood_wait[task.operation] = e.seconds
+            account.flood_wait[task.operation.value] = datetime.now(timezone.utc) + timedelta(seconds=e.seconds) 
+            await account.save_changes()
             print(f"Task failed for account {account.tg_id}: {str(e)}")
 
                         

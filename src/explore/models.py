@@ -19,10 +19,8 @@ from pydantic import Field,BaseModel
 from typing import TYPE_CHECKING
 from src.chat.models import TGChat
 from src.user.models import TGBot, TGUser
-
-if TYPE_CHECKING:
-    from src.search.models import Search
-    from src.account.models import TGAccount
+from src.search.models import Search
+from src.account.models import TGAccount    
 
 
 
@@ -39,7 +37,7 @@ class OperationType(str, Enum):
     get_pinned_messages = "GET_PINNED_MESSAGES"
     get_link_messages = "GET_LINK_MESSAGES"
     
-                         
+
 class Explore(Document):
     request: Link["Search"] = None
     target: str|int

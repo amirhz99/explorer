@@ -10,13 +10,13 @@ async def initial_models():
     await init_beanie(
         database=db,
         document_models=[
+            TGAccount,
             TGChat,
             TekegramUserParent,
             TGUser,
             TGBot,
-            TGAccount,
-            Explore,
             Search,
+            Explore,
         ],
     )
 

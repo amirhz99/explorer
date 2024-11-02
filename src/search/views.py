@@ -16,8 +16,8 @@ from src.explore.services import create_explore_task
 from src.chat.models import TGChat
 from src.search.schemas import Pagination, SearchRequest, SearchStatusResponse, TGBotResponse, TGChatResponse, TGUserResponse, TaskSummary
 from src.search.utils import get_match_score, is_english, merge_and_deduplicate, paginate
-from src.search.models import Search
 from src.explore import Explore, OperationsStatus
+from src.search.models import Search
 from src.user.models import TGBot, TGUser
 
 search_router = APIRouter()
@@ -28,7 +28,8 @@ async def create_search(request: SearchRequest):
         primary=request.primary,
         secondaries=request.secondaries,
         real_time=request.real_time,
-        accounts_count=request.accounts_count,
+        accounts_count=1,
+        depth= 1
     )
     await search.insert()
 
@@ -36,7 +37,7 @@ async def create_search(request: SearchRequest):
         explore = Explore(
             request=search,
             target=request.primary,
-            accounts_count=request.accounts_count,
+            accounts_count=1,
             status=OperationsStatus.pending,
             is_primary=True,
         )

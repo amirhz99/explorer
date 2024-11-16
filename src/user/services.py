@@ -3,6 +3,8 @@ from telethon.tl.types import (
     UserStatusOffline,
 )
 from beanie.operators import Set
+from datetime import datetime
+
 
 async def insert_user_data(user, full_user):
     status = type(user.status).__name__ if user.status else None
@@ -43,7 +45,19 @@ async def insert_user_data(user, full_user):
                 TGUser.stories_unavailable: getattr(user, "stories_unavailable", False),
                 TGUser.stories_hidden: getattr(user, "stories_hidden", False),
                 TGUser.about: getattr(full_user, "about", None),
-                TGUser.birthday: getattr(full_user, "birthday", None),
+                TGUser.birthday: (
+                    (
+                        datetime(
+                            year=full_user.birthday.year,
+                            month=full_user.birthday.month,
+                            day=full_user.birthday.day,
+                        )
+                        if full_user.birthday.year
+                        else None
+                    )
+                    if getattr(full_user, "birthday", None)
+                    else None
+                ),
                 TGUser.private_forward_name: getattr(
                     full_user, "private_forward_name", None
                 ),
@@ -68,10 +82,30 @@ async def insert_user_data(user, full_user):
                 TGUser.business_greeting_message: getattr(
                     full_user, "business_greeting_message", None
                 ),
-                TGUser.business_intro: getattr(full_user, "business_intro", None),
-                TGUser.business_location: getattr(full_user, "business_location", None),
-                TGUser.business_work_hours: getattr(
-                    full_user, "business_work_hours", None
+                TGUser.business_intro: (
+                    {
+                        "title": full_user.business_intro.title,
+                        "description": full_user.business_intro.description,
+                    }
+                    if getattr(full_user, "business_intro", None)
+                    else None
+                ),
+                TGUser.business_location: (
+                    {
+                        "address": full_user.business_location.address,
+                        "geo_point": full_user.business_location.geo_point,
+                    }
+                    if getattr(full_user, "business_location", None)
+                    else None
+                ),
+                TGUser.business_work_hours: (
+                    {
+                        "timezone_id": full_user.business_work_hours.timezone_id,
+                        "weekly_open": full_user.business_work_hours.weekly_open,
+                        "open_now": full_user.business_work_hours.open_now,
+                    }
+                    if getattr(full_user, "business_work_hours", None)
+                    else None
                 ),
             }
         ),
@@ -105,7 +139,19 @@ async def insert_user_data(user, full_user):
             stories_unavailable=getattr(user, "stories_unavailable", False),
             stories_hidden=getattr(user, "stories_hidden", False),
             about=getattr(full_user, "about", None),
-            birthday=getattr(full_user, "birthday", None),
+            birthday=(
+                (
+                    datetime(
+                        year=full_user.birthday.year,
+                        month=full_user.birthday.month,
+                        day=full_user.birthday.day,
+                    )
+                    if full_user.birthday.year
+                    else None
+                )
+                if getattr(full_user, "birthday", None)
+                else None
+            ),
             private_forward_name=getattr(full_user, "private_forward_name", None),
             contact_require_premium=getattr(
                 full_user, "contact_require_premium", False
@@ -120,9 +166,31 @@ async def insert_user_data(user, full_user):
             business_greeting_message=getattr(
                 full_user, "business_greeting_message", None
             ),
-            business_intro=getattr(full_user, "business_intro", None),
-            business_location=getattr(full_user, "business_location", None),
-            business_work_hours=getattr(full_user, "business_work_hours", None),
+            business_intro=(
+                {
+                    "title": full_user.business_intro.title,
+                    "description": full_user.business_intro.description,
+                }
+                if getattr(full_user, "business_intro", None)
+                else None
+            ),
+            business_location=(
+                {
+                    "address": full_user.business_location.address,
+                    "geo_point": full_user.business_location.geo_point,
+                }
+                if getattr(full_user, "business_location", None)
+                else None
+            ),
+            business_work_hours=(
+                {
+                    "timezone_id": full_user.business_work_hours.timezone_id,
+                    "weekly_open": full_user.business_work_hours.weekly_open,
+                    "open_now": full_user.business_work_hours.open_now,
+                }
+                if getattr(full_user, "business_work_hours", None)
+                else None
+            ),
         ),
     )
 

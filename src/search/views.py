@@ -43,7 +43,9 @@ async def create_search(request: SearchRequest):
         )
         await explore.insert()
         
-        await create_explore_task(search)
+        if request.value > 0:
+            await create_explore_task(search)
+            
 
     return JSONResponse(
         content={"message": "Searching...", "search_id": str(search.id)},

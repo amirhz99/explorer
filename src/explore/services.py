@@ -30,7 +30,7 @@ async def create_explore_task(request: PydanticObjectId|Search,query:str=None):
         is_primary = True
         seconderies = unique_list(request.secondaries)
         primeries_texts = [f'{request.primary.strip().lower()} {character}'.strip().lower() for character in pre_characters]
-        seconderies_texts = [(f'{request.primary.strip().lower()} {text} {character}'.strip().lower() for character in pre_characters) for text in seconderies]
+        seconderies_texts = [f'{request.primary.strip().lower()} {text} {character}'.strip().lower() for character in pre_characters for text in seconderies]
         texts = primeries_texts + seconderies_texts
         
     for text in texts:
@@ -38,6 +38,7 @@ async def create_explore_task(request: PydanticObjectId|Search,query:str=None):
         if explore:
             continue
         
+                
         new_task = Explore(
             request=request,
             target=text,

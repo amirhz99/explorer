@@ -63,9 +63,9 @@ class TGUser(Document):
     business_greeting_message: Optional[str] = Field(
         None, description="Business greeting message"
     )
-    business_intro: Optional[str] = Field(None, description="Business intro")
-    business_location: Optional[str] = Field(None, description="Business location")
-    business_work_hours: Optional[str] = Field(
+    business_intro: Optional[dict] = Field(None, description="Business intro")
+    business_location: Optional[dict] = Field(None, description="Business location")
+    business_work_hours: Optional[dict] = Field(
         None, description="Business working hours"
     )
     is_active: bool = True

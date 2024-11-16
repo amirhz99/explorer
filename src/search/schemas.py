@@ -86,4 +86,4 @@ class SearchRequest(BaseModel):
     primary: str
     secondaries: Optional[List[str]] = []  
     real_time: bool = False
-    accuracy: Optional[int] = 1
+    value: Optional[int] = 0

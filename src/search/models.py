@@ -18,12 +18,12 @@ from beanie import (
 from pydantic import Field
 
 
-
 class OperationsStatus(str, Enum):
     pending = "pending"
     in_process = "in_process"
     completed = "completed"
     failed = "failed"
+
 
 class Search(Document):
     primary: str
@@ -43,17 +43,3 @@ class Search(Document):
         @before_event(Update)
         def update_time(self):
             self.updated_at = datetime.now()
-            
-        # @after_event(Insert)
-        # async def create_primery_explore(self):
-        #     if self.real_time:
-        #         explore = Explore(
-        #             request=self,
-        #             target=self.primary,
-        #             accounts_count=self.accounts_count,
-        #             status=OperationsStatus.pending,
-        #             is_primary=True,
-        #         )
-        #         await explore.insert()
-
-# Explore.model_rebuild()

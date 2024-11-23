@@ -52,6 +52,7 @@ class TGAccount(Document):
     flood_wait: Optional[Dict[str,datetime]] = {}
     # Program-related information
     is_active: bool = True
+    # is_processing: bool = False
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
     class Settings:

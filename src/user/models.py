@@ -54,7 +54,7 @@ class TGUser(Document):
     phone_calls_available: bool = Field(False, description="Phone calls available")
     phone_calls_private: bool = Field(False, description="Phone calls are private")
     personal_channel_id: Optional[int] = Field(None, description="Personal channel ID")
-    personal_channel_message: Optional[str] = Field(
+    personal_channel_message: Optional[int] = Field(
         None, description="Personal channel message"
     )
     business_away_message: Optional[str] = Field(

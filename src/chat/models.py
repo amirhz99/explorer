@@ -18,11 +18,9 @@ from pydantic import Field
 from telethon.types import Channel, Chat, ChatFull
 from src.user import TGUser
 
-
 class ChatTypes(str, Enum):
     Group = "group"
     Channel = "channel"  # noqa: F811
-
 
 class TGChat(Document):
     tg_id: Indexed(int, unique=True)  # type: ignore

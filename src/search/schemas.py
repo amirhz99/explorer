@@ -2,8 +2,19 @@
 from pydantic import BaseModel, Field
 from typing import Any, List, Optional, TypeVar, Generic
 from datetime import datetime
+from beanie import PydanticObjectId
 
-
+class SearchResponse(BaseModel):
+    id: PydanticObjectId
+    primary: str
+    secondaries: List[str]
+    real_time: bool
+    depth: int | None
+    accounts_count: int | None
+    status: str
+    updated_at: datetime
+    created_at: datetime
+    
 class TaskSummary(BaseModel):
     completed: int
     failed: int

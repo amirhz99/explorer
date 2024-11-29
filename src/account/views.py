@@ -1,3 +1,4 @@
+from typing import List, Optional
 from fastapi import (
     APIRouter,
     Depends,
@@ -9,9 +10,11 @@ from fastapi import (
     Query,
 )
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from beanie import init_beanie
+from beanie import PydanticObjectId, init_beanie
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
+from src.explore.models import Explore
+from src.account.schemas import ProcessingInfo, TGAccountListResponse, TGAccountResponse
 from src.account.models import TGAccount
 from src.account.utils import extract_zip
 from src.account.services import convert_session_to_string
@@ -23,6 +26,87 @@ account_router = APIRouter()
 
 DEFAULT_API_ID = 2040
 DEFAULT_API_HASH = "b18441a1ff607e10a989891a5462e627"
+
+# Route for getting one account
+@account_router.get("/{account_id}", response_model=TGAccountResponse)
+async def get_account_details(account_id: PydanticObjectId):
+    """
+    Get detailed information about a single account and its processing status.
+    """
+    account = await TGAccount.get(account_id, fetch_links=True)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    return TGAccountResponse(
+        id=account.id,
+        tg_id=account.tg_id,
+        session_string=account.session_string,
+        phone_number=account.phone_number,
+        first_name=account.first_name,
+        last_name=account.last_name,
+        username=account.username,
+        flood_wait=account.flood_wait,
+        is_active=account.is_active,
+        updated_at=account.updated_at,
+        created_at=account.created_at,
+        processing_info=account.processes,
+    )
+
+
+# Route for getting all accounts
+@account_router.get("", response_model=TGAccountListResponse)
+async def get_all_accounts(
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    limit: int = Query(10, ge=1, description="Limit the number of results"),
+    skip: int = Query(0, ge=0, description="Number of results to skip for pagination"),
+):
+    """
+    Get a list of all accounts with optional filters and pagination.
+    """
+    query = {}
+    if is_active is not None:
+        query["is_active"] = is_active
+
+    # Query all accounts with optional filtering and pagination
+    accounts = (
+        await TGAccount.find(query, fetch_links=True).skip(skip).limit(limit).to_list()
+    )
+
+    # Build response
+    return TGAccountListResponse(
+        accounts=[
+            TGAccountResponse(
+                id=account.id,
+                tg_id=account.tg_id,
+                session_string=account.session_string,
+                phone_number=account.phone_number,
+                first_name=account.first_name,
+                last_name=account.last_name,
+                username=account.username,
+                flood_wait=account.flood_wait,
+                is_active=account.is_active,
+                updated_at=account.updated_at,
+                created_at=account.created_at,
+                processing_info=account.processes,
+            )
+            for account in accounts
+        ]
+    )
+
+
+@account_router.delete("/{account_id}")
+async def get_account_details(account_id: PydanticObjectId):
+    """
+    Set account is active false
+    """
+    account = await TGAccount.get(account_id, fetch_links=True)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    account.is_active = False
+    await account.save()
+    
+    return {"message":"account deleted successfuly"}
 
 
 @account_router.post("/upload/")

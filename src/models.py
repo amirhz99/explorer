@@ -19,5 +19,4 @@ async def initial_models():
             Explore,
         ],
     )
-
     await reset_in_process_tasks()

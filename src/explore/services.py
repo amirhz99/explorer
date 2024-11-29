@@ -96,7 +96,7 @@ async def explore_search(task: Explore, client: TelegramClient):
 
 async def pick_pending_task_for_account(account: TGAccount):
     
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now()
 
     def is_operation_blocked(operation_type: OperationType) -> bool:
         # Safely fetch end time from flood_wait or return None
@@ -141,18 +141,18 @@ async def pick_pending_task_for_account(account: TGAccount):
     # return task
 
 async def process_task_for_account(account: TGAccount):
-
+    
+    task = await pick_pending_task_for_account(account)
+    if not task:
+        print(f"No pending tasks left for account {account.tg_id}.")
+        return
+        
     client = await start_telegram_client(account)
     if client is None:
         print(f"Failed to connect TGAccount {account.tg_id}. Skipping task processing.")
         return
 
-    while True:
-        task = await pick_pending_task_for_account(account)
-
-        if not task:
-            print(f"No pending tasks left for account {account.tg_id}.")
-            break
+    while (task and client):
         
         try:
             task.processing_accounts.append(account)
@@ -176,11 +176,12 @@ async def process_task_for_account(account: TGAccount):
             
             await task.save_changes()
             await asyncio.sleep(1)
+            
         except FloodWaitError as e:
             task.status = OperationsStatus.failed
             task.processing_accounts.remove(account)
             await task.save_changes()
-            account.flood_wait[task.operation.value] = datetime.now(timezone.utc) + timedelta(seconds=e.seconds) 
+            account.flood_wait[task.operation.value] = datetime.now() + timedelta(seconds=e.seconds) 
             await account.save_changes()
             print(f"Task failed for account {account.tg_id}: {str(e)}")
 
@@ -190,6 +191,11 @@ async def process_task_for_account(account: TGAccount):
             task.processing_accounts.remove(account)
             await task.save_changes()
             print(f"Task failed for account {account.tg_id}: {str(e)}")
+            
+            
+        finally:
+            task = await pick_pending_task_for_account(account)
+
 
             
 

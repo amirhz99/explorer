@@ -1,4 +1,4 @@
-from __future__ import annotations
+# from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import List, Union,TYPE_CHECKING
@@ -20,7 +20,10 @@ from typing import TYPE_CHECKING
 from src.chat.models import TGChat
 from src.user.models import TGBot, TGUser
 from src.search.models import Search
-from src.account.models import TGAccount    
+
+
+if TYPE_CHECKING:
+    from src.account.models import TGAccount    
 
 
 

@@ -4,6 +4,9 @@ from beanie.operators import Set
 
 async def insert_chat_data(chat, full_chat):
 
+    if not getattr(chat, "username", None) and not getattr(chat, "usernames", False):
+        print(chat.title)
+        
     await TGChat.find_one(TGChat.tg_id == chat.id).upsert(
         Set(
             {
@@ -11,7 +14,7 @@ async def insert_chat_data(chat, full_chat):
                 TGChat.chat_type: type(chat).__name__,
                 TGChat.username: getattr(chat, "username", None),
                 TGChat.usernames: ((item.username for item in chat.usernames) if getattr(chat, "usernames", False) else None),
-                TGChat.participants_count: getattr(chat, "participants_count", None),
+                TGChat.participants_count: getattr(full_chat, "participants_count", None),
                 TGChat.call_active: getattr(chat, "call_active", False),
                 TGChat.noforwards: getattr(chat, "noforwards", False),
                 TGChat.verified: getattr(chat, "verified", False),

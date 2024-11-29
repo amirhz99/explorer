@@ -9,7 +9,6 @@ from src.account.models import TGAccount
 from app.config import settings
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_SUBMITTED, EVENT_JOB_REMOVED
 from datetime import datetime
-
 jobstores = {
     # 'default': MemoryJobStore()
     'default': MongoDBJobStore(database='task_manager_db', collection='explorer_jobs', client=MongoClient(settings.MONGODB_URI))
@@ -44,12 +43,17 @@ scheduler.add_listener(job_listener, EVENT_JOB_SUBMITTED | EVENT_JOB_EXECUTED | 
 #     print('interval task is run...')
 @scheduler.scheduled_job("interval", seconds=60)
 async def schedule_jobs_for_accounts():
-    accounts = await TGAccount.find(TGAccount.is_active == True).to_list()  # noqa: E712
+    accounts = await TGAccount.find(TGAccount.is_active == True,TGAccount.processes == [],fetch_links=True).to_list()  # noqa: E712
     task = await Explore.find_one(Explore.status == OperationsStatus.pending,)
     if not task:
         return
-    
+
     for account in accounts:
+        
+        if account.processes:
+            print(f"Account {account.tg_id} is already processing a task. Skipping...")
+            print(account.processes)
+            continue
         
         job_id = f"job_for_{account.id}"
 

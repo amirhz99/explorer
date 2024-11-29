@@ -1,8 +1,11 @@
-from __future__ import annotations
+# from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional,TYPE_CHECKING
-from beanie import Document, Link, Update, before_event,Indexed
+from beanie import BackLink, Document, Link, Update, before_event,Indexed
 from pydantic import Field
+
+# if TYPE_CHECKING:
+from src.explore.models import Explore
 
 class TGAccount(Document):
     tg_id: Optional[int]
@@ -53,6 +56,7 @@ class TGAccount(Document):
     # Program-related information
     is_active: bool = True
     # is_processing: bool = False
+    processes: List[BackLink["Explore"]] = Field(original_field="processing_accounts")
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
     class Settings:

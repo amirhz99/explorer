@@ -18,7 +18,7 @@ class TGAccount(Document):
     first_name: Optional[str]
     last_name: Optional[str]
     username: Optional[str]
-    date_of_birth: Optional[str]  # You could parse this as `datetime` if needed
+    date_of_birth: Optional[str|int]  # You could parse this as `datetime` if needed
     date_of_birth_integrity: Optional[str]
     is_premium: Optional[bool]
     has_profile_pic: Optional[bool]

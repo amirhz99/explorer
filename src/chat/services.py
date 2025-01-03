@@ -4,6 +4,8 @@ from beanie.operators import Set
 
 async def insert_chat_data(chat, full_chat):
 
+    print(f"insert {chat.title} ...")
+    
     if not getattr(chat, "username", None) and not getattr(chat, "usernames", False):
         print(chat.title)
         

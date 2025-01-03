@@ -22,11 +22,11 @@ import os
 import tempfile
 import json
 
-account_router = APIRouter()
-
 DEFAULT_API_ID = 2040
 DEFAULT_API_HASH = "b18441a1ff607e10a989891a5462e627"
-
+        
+account_router = APIRouter()
+   
 # Route for getting one account
 @account_router.get("/{account_id}", response_model=TGAccountResponse)
 async def get_account_details(account_id: PydanticObjectId):
@@ -56,7 +56,7 @@ async def get_account_details(account_id: PydanticObjectId):
 # Route for getting all accounts
 @account_router.get("", response_model=TGAccountListResponse)
 async def get_all_accounts(
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    is_active: Optional[bool] = Query(True, description="Filter by active status"),
     limit: int = Query(10, ge=1, description="Limit the number of results"),
     skip: int = Query(0, ge=0, description="Number of results to skip for pagination"),
 ):

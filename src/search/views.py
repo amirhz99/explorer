@@ -39,6 +39,7 @@ search_router = APIRouter()
 
 @search_router.post("/")
 async def create_search(request: SearchRequest):
+
     search = Search(
         primary=request.primary,
         secondaries=request.secondaries,
@@ -48,7 +49,14 @@ async def create_search(request: SearchRequest):
     )
     await search.insert()
 
-    if request.real_time:
+    if not request.real_time:
+        return JSONResponse(
+            content={"message": "Search Created", "search_id": str(search.id)},
+            status_code=200,
+        )
+
+    if request.value > 0:
+        
         explore = Explore(
             request=search,
             target=request.primary,
@@ -58,8 +66,10 @@ async def create_search(request: SearchRequest):
         )
         await explore.insert()
 
-        if request.value > 0:
-            await create_explore_task(search)
+    if request.value > 1:
+        await create_explore_task(search)
+        
+    
 
     return JSONResponse(
         content={"message": "Searching...", "search_id": str(search.id)},

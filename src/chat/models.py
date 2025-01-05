@@ -16,6 +16,7 @@ from beanie import (
 )
 from pydantic import Field
 from telethon.types import Channel, Chat, ChatFull
+from src.account.models import TGAccount
 from src.user import TGUser
 
 class ChatTypes(str, Enum):
@@ -100,6 +101,7 @@ class TGChat(Document):
 
     invitation_links: Optional[List[str]] = Field(None, description="Invitation links")
     members: Optional[List[Link[TGUser]]] = Field(None, description="Chat members list")
+    scraped_by: List[Link["TGAccount"]] = []
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)

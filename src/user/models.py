@@ -69,6 +69,7 @@ class TGUser(Document):
         None, description="Business working hours"
     )
     is_active: bool = True
+    scraped_by: List[Link["TGAccount"]] = []
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -85,7 +86,7 @@ class TGUser(Document):
             self.updated_at = datetime.now()
 
 
-class TGBot(Document):
+class TGBot(Document): # type: ignore
     tg_id: Indexed(int, unique=True)  # type: ignore
     first_name: Optional[str] = Field(None, description="First name of the bot")
     last_name: Optional[str] = Field(None, description="Last name of the bot")

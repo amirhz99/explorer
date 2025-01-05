@@ -1,2 +1,2 @@
-from .views import account_router
+from .routes import account_router
 from .models import *

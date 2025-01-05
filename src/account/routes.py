@@ -13,7 +13,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from beanie import PydanticObjectId, init_beanie
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from src.explore.models import Explore
+from src.task.models import Explore
 from src.account.schemas import ProcessingInfo, TGAccountListResponse, TGAccountResponse
 from src.account.models import TGAccount
 from src.account.utils import extract_zip

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from beanie import PydanticObjectId
 from typing import List, Dict, Any, Optional, Tuple, TypeVar
-from src.explore.models import Explore, TGChat, TGUser, TGBot
+from src.task.models import Explore, TGChat, TGUser, TGBot
 from src.search.models import Search
 from math import ceil
 import re

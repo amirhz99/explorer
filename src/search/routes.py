@@ -5,14 +5,10 @@ from beanie import PydanticObjectId
 from starlette.responses import JSONResponse
 from fastapi import (
     APIRouter,
-    Depends,
     HTTPException,
     Query,
-    Request,
-    status,
-    UploadFile,
 )
-from src.explore.services import create_explore_task
+from src.task.services import TaskManager
 from src.chat.models import TGChat
 from src.search.schemas import (
     Pagination,
@@ -30,7 +26,7 @@ from src.search.utils import (
     merge_and_deduplicate,
     paginate,
 )
-from src.explore import Explore, OperationsStatus
+from src.task.models import Task, TaskStatus
 from src.search.models import Search
 from src.user.models import TGBot, TGUser
 
@@ -45,7 +41,7 @@ async def create_search(request: SearchRequest):
         secondaries=request.secondaries,
         real_time=request.real_time,
         accounts_count=1,
-        depth=1,
+        depth=request.value,
     )
     await search.insert()
 
@@ -55,27 +51,14 @@ async def create_search(request: SearchRequest):
             status_code=200,
         )
 
-    if request.value > 0:
-        
-        explore = Explore(
-            request=search,
-            target=request.primary,
-            accounts_count=1,
-            status=OperationsStatus.pending,
-            is_primary=True,
-        )
-        await explore.insert()
+    primery_task = await TaskManager.create_primary_task(search)
 
-    if request.value > 1:
-        await create_explore_task(search)
-        
+    await TaskManager.create_secondary_tasks(primery_task)
     
-
     return JSONResponse(
         content={"message": "Searching...", "search_id": str(search.id)},
         status_code=200,
     )
-
 
 @search_router.get("/{search_id}/status", response_model=SearchStatusResponse)
 async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse:
@@ -84,7 +67,7 @@ async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse
     if not search:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    explores = await Explore.find(Explore.request.id == search.id).to_list()
+    explores = await Task.find(Task.request.id == search.id).to_list()
 
     if not explores:
         raise HTTPException(
@@ -93,24 +76,24 @@ async def get_search_status(search_id: PydanticObjectId) -> SearchStatusResponse
 
     total_tasks = len(explores)
     completed_tasks = sum(
-        1 for exp in explores if exp.status == OperationsStatus.completed
+        1 for exp in explores if exp.status == TaskStatus.completed
     )
-    failed_tasks = sum(1 for exp in explores if exp.status == OperationsStatus.failed)
+    failed_tasks = sum(1 for exp in explores if exp.status == TaskStatus.failed)
     in_process_tasks = sum(
-        1 for exp in explores if exp.status == OperationsStatus.in_process
+        1 for exp in explores if exp.status == TaskStatus.in_process
     )
-    pending_tasks = sum(1 for exp in explores if exp.status == OperationsStatus.pending)
+    pending_tasks = sum(1 for exp in explores if exp.status == TaskStatus.pending)
 
     completed_percentage = (
         ((completed_tasks + failed_tasks) / total_tasks) * 100 if total_tasks > 0 else 0
     )
 
     if completed_tasks == total_tasks:
-        search_status = OperationsStatus.completed
+        search_status = TaskStatus.completed
     elif failed_tasks == total_tasks:
-        search_status = OperationsStatus.failed
+        search_status = TaskStatus.failed
     elif in_process_tasks == 0 and pending_tasks == 0:
-        search_status = OperationsStatus.completed
+        search_status = TaskStatus.completed
     else:
         search_status = search.status
 
@@ -141,8 +124,8 @@ async def get_search_results(
     if not search:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    explores = await Explore.find(
-        Explore.request.id == search_id, fetch_links=True
+    explores = await Task.find(
+        Task.request.id == search_id, fetch_links=True
     ).to_list()
 
     chats = [
@@ -296,8 +279,8 @@ async def get_search_results(
     related_explores = []
     for related_search in related_searches:
         related_explores.extend(
-            await Explore.find(
-                Explore.request.id == related_search.id, fetch_links=True
+            await Task.find(
+                Task.request.id == related_search.id, fetch_links=True
             ).to_list()
         )
 
@@ -343,7 +326,7 @@ async def get_search_results(
 
 @search_router.get("/", response_model=List[SearchResponse])
 async def get_searches(
-    descending: bool = True, status: Optional[OperationsStatus] = None
+    descending: bool = True, status: Optional[TaskStatus] = None
 ):
     """
     Fetch a list of searches sorted by the updated_at field.

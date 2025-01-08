@@ -42,7 +42,7 @@ class Task(Document):
     accounts_count: int | None = 1
     priority: int = 1
     parent_task: Optional[Link["Task"]] = None
-    level: bool = 1
+    level: int = 1
     assigned_accounts: List[Link["TGAccount"]] = []
     completed_accounts: List[Link["TGAccount"]] = []
     processing_accounts: List[Link["TGAccount"]] = []
@@ -106,17 +106,18 @@ class Task(Document):
             await self.save_changes()
 
 
-async def reset_in_process_tasks():
-    """
-    Resets tasks stuck in the `in_process` state by clearing `processing_accounts`.
-    """
-    tasks = await Task.find(
-        Task.status == TaskStatus.in_process,
-        {"$where": "this.processing_accounts.length > 0"}
-    ).to_list()
+    @staticmethod
+    async def reset_in_process_tasks():
+        """
+        Resets tasks stuck in the `in_process` state by clearing `processing_accounts`.
+        """
+        tasks = await Task.find(
+            Task.status == TaskStatus.in_process,
+            {"$where": "this.processing_accounts.length > 0"}
+        ).to_list()
 
-    for task in tasks:
-        print(f"Recovering task {task.target}. Clearing processing accounts: {task.processing_accounts}")
-        await task.reset_processing_accounts()
+        for task in tasks:
+            print(f"Recovering task {task.target}. Clearing processing accounts: {task.processing_accounts}")
+            await task.reset_processing_accounts()
 
-    print(f"Recovery complete. Cleared processing accounts for {len(tasks)} tasks.")
+        print(f"Recovery complete. Cleared processing accounts for {len(tasks)} tasks.")

@@ -76,24 +76,32 @@ async def process_account(account: TGAccount):
 async def worker_logic():
     await setup_database()
 
-    while True:
-        try:
-            # Fetch 1-2 available accounts
-            available_accounts = await get_available_accounts(limit=2)
-            if not available_accounts:
-                await asyncio.sleep(1)  # Wait if no accounts are available
-                continue
+    try:
+        while True:
+            try:
+                # Fetch 1-2 available accounts
+                available_accounts = await get_available_accounts(limit=2)
+                if not available_accounts:
+                    await asyncio.sleep(1)  # Wait if no accounts are available
+                    continue
 
-            # Process each account asynchronously
-            tasks = [
-                asyncio.create_task(process_account(account))
-                for account in available_accounts
-            ]
-            await asyncio.gather(*tasks)  # Wait for all account tasks to complete
-            await asyncio.sleep(0.1)  # Prevent busy looping
-        except Exception as e:
-            logger.error(f"Worker error: {e}")
-            await asyncio.sleep(5)  # Backoff in case of repeated errors
+                # Process each account asynchronously
+                tasks = [
+                    asyncio.create_task(process_account(account))
+                    for account in available_accounts
+                ]
+                await asyncio.gather(*tasks)  # Wait for all account tasks to complete
+                await asyncio.sleep(0.1)  # Prevent busy looping
+                
+            except asyncio.CancelledError:
+                    logger.info("Worker logic received cancellation request. Exiting loop.")
+                    break
+            
+            except Exception as e:
+                logger.error(f"Worker error: {e}")
+                await asyncio.sleep(5)  # Backoff in case of repeated errors
+    finally:
+        logger.info("Worker loop exited. Performing final cleanup...")
 
 # Graceful shutdown handler
 async def shutdown(signal, loop):
@@ -106,8 +114,12 @@ async def shutdown(signal, loop):
     logger.info("Cancelled all running tasks.")
 
     # Wait for all tasks to finish
-    await asyncio.gather(*tasks, return_exceptions=True)
-
+    # try:
+    #     # Wait for tasks to complete with a timeout
+    #     await asyncio.gather(*tasks, return_exceptions=True)
+    # except Exception as e:
+    #     logger.error(f"Error during task cleanup: {e}")
+        
     # Reset `worker_id` for this worker's accounts
     logger.info(f"Resetting accounts assigned to {WORKER_ID}...")
     worker_account_ids = await TGAccount.find({"worker_id": WORKER_ID}).project(TGAccount.id).to_list()

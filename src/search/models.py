@@ -18,7 +18,7 @@ from beanie import (
 from pydantic import Field
 
 
-class OperationsStatus(str, Enum):
+class SearchStatus(str, Enum):
     pending = "pending"
     in_process = "in_process"
     completed = "completed"
@@ -31,7 +31,7 @@ class Search(Document):
     real_time: bool = False
     depth: int | None = 1
     accounts_count: int | None = 1
-    status: OperationsStatus = OperationsStatus.pending
+    status: SearchStatus = SearchStatus.in_process
     is_active: bool = True
     updated_at: datetime = Field(default_factory=datetime.now)
     created_at: datetime = Field(default_factory=datetime.now)
@@ -43,3 +43,8 @@ class Search(Document):
         @before_event(Update)
         def update_time(self):
             self.updated_at = datetime.now()
+
+    async def mark_as_completed(self):
+        """Mark the search as completed."""
+        self.status = SearchStatus.completed
+        await self.save()

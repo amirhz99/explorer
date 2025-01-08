@@ -281,6 +281,18 @@ class TaskManager:
 
         finally:
             await task.save_changes()
+            search = await Search.get(task.search_id)  # Assuming Task has a `search_id` field
+            if not search:
+                # logger.error(f"Search {task.search_id} not found for task {task.id}.")
+                return
+
+            pending_tasks_count = await Task.find(
+                {"search_id": task.search_id, "status": {"$ne": TaskStatus.completed}}
+            ).count()
+
+            if pending_tasks_count == 0:
+                await search.mark_as_completed()
+                # logger.info(f"Search {search.id} marked as completed.")
 
     async def _process_search_task(self, task: Task):
         """

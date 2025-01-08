@@ -8,8 +8,6 @@ from fastapi import (
     HTTPException,
     Query,
 )
-from src.task.services import TaskManager
-from src.chat.models import TGChat
 from src.search.schemas import (
     Pagination,
     SearchRequest,
@@ -29,9 +27,10 @@ from src.search.utils import (
 from src.task.models import Task, TaskStatus
 from src.search.models import Search
 from src.user.models import TGBot, TGUser
+from src.task.services import TaskManager
+from src.chat.models import TGChat
 
 search_router = APIRouter()
-
 
 @search_router.post("/")
 async def create_search(request: SearchRequest):

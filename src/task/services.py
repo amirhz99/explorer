@@ -157,7 +157,7 @@
 #             print(f"Processing task {task.target} for account {account.tg_id}...")
 
 #             await asyncio.sleep(3)
-            
+
 #             match task.operation:
 #                 case OperationType.search:
 #                     await explore_search(task, client)
@@ -203,12 +203,7 @@
 
 #     await client.disconnect()
 
-
-
-
 from datetime import datetime
-from beanie import PydanticObjectId
-from telethon import TelegramClient
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.users import GetFullUserRequest
@@ -217,7 +212,12 @@ from beanie.operators import Push
 from src.search.models import Search
 from src.account.services import AccountManager
 from src.task.models import Task, TaskStatus, TaskType
-from src.task.utils import generate_words_from_title, characters, unique_list
+from src.task.utils import (
+    generate_words_from_title,
+    characters,
+    genrate_words_with_characters,
+    unique_list,
+)
 from src.chat.services import insert_chat_data
 from src.user.services import insert_bot_data, insert_user_data
 
@@ -226,6 +226,7 @@ class TaskManager:
     """
     Class to manage task-related operations, including picking and processing tasks.
     """
+
     def __init__(self, account_manager: "AccountManager"):
         self.account_manager = account_manager
 
@@ -233,7 +234,6 @@ class TaskManager:
         """
         Picks the next pending task for the associated account.
         """
-        current_time = datetime.now()
 
         def is_task_eligible(task: Task) -> bool:
             return not self.account_manager.is_operation_blocked(task.task_type)
@@ -248,6 +248,7 @@ class TaskManager:
         async for task in tasks_cursor:
             if is_task_eligible(task):
                 return task
+
         return None
 
     async def process_task(self, task: Task):
@@ -256,13 +257,17 @@ class TaskManager:
         """
         try:
             await task.assign_account(self.account_manager.account)
-            print(f"Processing task {task.target} for account {self.account_manager.account.tg_id}...")
+            print(
+                f"Processing task {task.target} for account {self.account_manager.account.tg_id}..."
+            )
 
             match task.task_type:
                 case TaskType.search:
                     await self._process_search_task(task)
                 case _:
-                    raise NotImplementedError(f"Task type {task.task_type} is not supported.")
+                    raise NotImplementedError(
+                        f"Task type {task.task_type} is not supported."
+                    )
 
             await task.complete_account(self.account_manager.account)
 
@@ -303,18 +308,31 @@ class TaskManager:
             await task.update(Push({Task.results: tg_chat}))
 
     @staticmethod
-    async def create_sub_tasks(task: Task, query: str,use_characters:bool=False):
+    async def create_sub_tasks(task: Task, query: str):
         """
         Creates subtasks for search results.
         """
-        
+
         current_level = task.level + 1
         if current_level > task.request.depth:
             return
 
-        texts = generate_words_from_title(query, task.target, use_characters=use_characters)
+        texts = []
+
+        texts.extend(generate_words_from_title(query, task.request.primary))
+        
+        if task.level == 0:
+            texts.extend(genrate_words_with_characters(task.target))
+            
+        elif task.level == 1:
+            texts.extend(genrate_words_with_characters(task.target))
+            texts.extend(generate_words_from_title(query, task.target))
+
         for text in texts:
-            existing_task = await Task.find_one(Task.request.id == task.request.id, Task.target == text)
+            existing_task = await Task.find_one(
+                Task.target == text,
+                # Task.request.id == task.request.id,
+            )
             if not existing_task:
                 new_task = Task(
                     request=task.request,
@@ -325,22 +343,23 @@ class TaskManager:
                     status=TaskStatus.pending,
                 )
                 await new_task.insert()
-    
+
     @staticmethod
     async def create_secondary_tasks(task: Task):
         """
         Recursively create secondary tasks based on the depth parameter.
         """
-        
+
         seconderies = unique_list(task.request.secondaries)
         seconderies_texts = [
-            f"{task.target.strip().lower()} {text} {character}".strip().lower()
-            for character in characters
+            f"{task.target.strip().lower()} {text}".strip().lower()
             for text in seconderies
         ]
-        
+
         for text in seconderies_texts:
-            existing_task = await Task.find_one(Task.request.id == task.request.id, Task.target == text)
+            existing_task = await Task.find_one(
+                Task.request.id == task.request.id, Task.target == text
+            )
             if not existing_task:
                 secondary_task = Task(
                     request=task.request,
@@ -373,5 +392,5 @@ class TaskManager:
             updated_at=datetime.now(),
         )
         await primary_task.insert()
-        
+
         return primary_task

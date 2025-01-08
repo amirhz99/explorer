@@ -1,6 +1,6 @@
 from beanie import init_beanie
 from src.account.models import TGAccount
-from app.db import db
+from src.db import db
 from src.task import reset_in_process_tasks, Task
 from src.search import Search
 from src.chat import TGChat
@@ -19,4 +19,4 @@ async def initial_models():
             Task,
         ],
     )
-    await reset_in_process_tasks()
+    # await reset_in_process_tasks()

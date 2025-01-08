@@ -63,7 +63,7 @@
 from datetime import datetime, timedelta
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.errors import rpcerrorlist, AuthKeyDuplicatedError
+from telethon.errors import AuthKeyDuplicatedError
 from src.account.models import TGAccount
 
 

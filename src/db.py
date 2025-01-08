@@ -1,5 +1,5 @@
 import motor.motor_asyncio
-from app import settings
+from src.config import settings
 
 # from redis.asyncio import Redis
 

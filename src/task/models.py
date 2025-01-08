@@ -1,41 +1,14 @@
 # from __future__ import annotations
-from datetime import datetime
-from enum import Enum
-from typing import List, Optional, Union,TYPE_CHECKING
-from beanie import (
-    BackLink,
-    Document,
-    Indexed,
-    Link,
-    Insert,
-    Replace,
-    Save,
-    SaveChanges,
-    Update,
-    after_event,
-    before_event,
-)
 from pydantic import Field,BaseModel
-from typing import TYPE_CHECKING
-from src.chat.models import TGChat
-from src.user.models import TGBot, TGUser
-from src.search.models import Search
-
-
-if TYPE_CHECKING:
-    from src.account.models import TGAccount    
-
-
 from datetime import datetime
 from enum import Enum
-from typing import List, Union, TYPE_CHECKING
+from typing import List, Optional, Union, TYPE_CHECKING
 from beanie import (
     Document,
     Link,
     Update,
     before_event,
 )
-from pydantic import Field
 
 if TYPE_CHECKING:
     from src.account.models import TGAccount

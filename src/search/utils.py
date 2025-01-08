@@ -1,13 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from beanie import PydanticObjectId
 from typing import List, Dict, Any, Optional, Tuple, TypeVar
-from src.task.models import Explore, TGChat, TGUser, TGBot
 from src.search.models import Search
 from math import ceil
 import re
 
 T = TypeVar("T")  # Generic type for paginated data
-
 
 def paginate(
     data: List[T], page: int, limit: int
@@ -29,7 +27,6 @@ def paginate(
     previous_page = page - 1 if page > 1 else None
 
     return paginated_data, total_count, total_pages, next_page, previous_page
-
 
 def merge_and_deduplicate(
     real_time: List[Dict[str, Any]], historical: List[Dict[str, Any]]

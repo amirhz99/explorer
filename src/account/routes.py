@@ -13,11 +13,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from beanie import PydanticObjectId, init_beanie
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from src.task.models import Explore
 from src.account.schemas import ProcessingInfo, TGAccountListResponse, TGAccountResponse
 from src.account.models import TGAccount
 from src.account.utils import extract_zip
-from src.account.services import convert_session_to_string
+from src.account.services import AccountManager
 import os
 import tempfile
 import json
@@ -148,7 +147,7 @@ async def upload_file(file: UploadFile = File(...)):
                 )
 
         # Convert session file to session string
-        session_string = await convert_session_to_string(session_path, api_id, api_hash)
+        session_string = await AccountManager.convert_session_to_string(session_path, api_id, api_hash)
 
         # Create TGAccount document with available data
         tg_account = TGAccount(

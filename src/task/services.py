@@ -238,10 +238,13 @@ class TaskManager:
         def is_task_eligible(task: Task) -> bool:
             return not self.account_manager.is_operation_blocked(task.task_type)
 
+        account_id = self.account_manager.account.id  # Extract the actual ID from the account BackLink object
+
+        # Use this account_id in the query
         tasks_cursor = Task.find(
             Task.status == TaskStatus.pending,
-            {"completed_accounts": {"$nin": [self.account_manager.account]}},
-            {"processing_accounts": {"$nin": [self.account_manager.account]}},
+            {"completed_accounts": {"$nin": [account_id]}},  # Use the account_id directly
+            {"processing_accounts": {"$nin": [account_id]}},  # Use the account_id directly
             {"$expr": {"$lt": [{"$size": "$processing_accounts"}, "$accounts_count"]}},
         ).sort("created_at")
 
@@ -281,17 +284,13 @@ class TaskManager:
 
         finally:
             await task.save_changes()
-            search = await Search.get(task.search_id)  # Assuming Task has a `search_id` field
-            if not search:
-                # logger.error(f"Search {task.search_id} not found for task {task.id}.")
-                return
 
             pending_tasks_count = await Task.find(
-                {"search_id": task.search_id, "status": {"$ne": TaskStatus.completed}}
+                {"request": task.request, "status": {"$ne": TaskStatus.completed}}
             ).count()
 
             if pending_tasks_count == 0:
-                await search.mark_as_completed()
+                await task.request.mark_as_completed()
                 # logger.info(f"Search {search.id} marked as completed.")
 
     async def _process_search_task(self, task: Task):

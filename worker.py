@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Store accounts processed by this worker
 WORKER_ID = f"worker-{os.getpid()}"
 
+
 # Setup database connection
 async def setup_database():
     try:
@@ -28,16 +29,26 @@ async def setup_database():
         logger.error(f"Failed to connect to database: {e}")
         raise
 
+
 async def get_available_accounts(limit: int = 2):
-    accounts = await TGAccount.find(
-        {"is_active": True, "worker_id": None}  # Only pick accounts not assigned to any worker
-    ).limit(limit).to_list()
+    accounts = (
+        await TGAccount.find(
+            {
+                "is_active": True,
+                "worker_id": None,
+            },  # Only pick accounts not assigned to any worker
+            fetch_links=True,
+        )
+        .limit(limit)
+        .to_list()
+    )
 
     for account in accounts:
         account.worker_id = WORKER_ID  # Assign this worker's ID
         await account.save()
 
     return accounts
+
 
 # Process a single account's tasks
 async def process_account(account: TGAccount):
@@ -47,14 +58,14 @@ async def process_account(account: TGAccount):
     if not task:
         logger.info(f"No pending tasks for account {account.tg_id}.")
         return
-    
+
     try:
         # Connect the account
         client = await account_manager.connect()
         if not client:
             logger.warning(f"Account {account.tg_id} failed to connect.")
             return
-        
+
         # Process tasks for this account
         while True:
             task = await task_manager.pick_pending_task()
@@ -71,6 +82,7 @@ async def process_account(account: TGAccount):
         await account_manager.disconnect()
         account.worker_id = None  # Reset the worker_id
         await account.save()
+
 
 # Worker logic
 async def worker_logic():
@@ -92,59 +104,85 @@ async def worker_logic():
                 ]
                 await asyncio.gather(*tasks)  # Wait for all account tasks to complete
                 await asyncio.sleep(0.1)  # Prevent busy looping
-                
+
             except asyncio.CancelledError:
-                    logger.info("Worker logic received cancellation request. Exiting loop.")
-                    break
-            
+                logger.info("Worker logic received cancellation request. Exiting loop.")
+                break
+
             except Exception as e:
                 logger.error(f"Worker error: {e}")
                 await asyncio.sleep(5)  # Backoff in case of repeated errors
     finally:
         logger.info("Worker loop exited. Performing final cleanup...")
 
-# Graceful shutdown handler
-async def shutdown(signal, loop):
-    logger.info(f"Received exit signal {signal.name}. Shutting down gracefully...")
-    
-    # Cancel all running tasks except the current one
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    for task in tasks:
-        task.cancel()
-    logger.info("Cancelled all running tasks.")
+        # Ensure all tasks are completed before performing shutdown cleanup
+        try:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as e:
+            logger.error(f"Error during final cleanup: {e}")
 
-    # Wait for all tasks to finish
-    # try:
-    #     # Wait for tasks to complete with a timeout
-    #     await asyncio.gather(*tasks, return_exceptions=True)
-    # except Exception as e:
-    #     logger.error(f"Error during task cleanup: {e}")
-        
-    # Reset `worker_id` for this worker's accounts
+        # Final cleanup logic for the worker
+        await cleanup_worker()
+
+
+async def cleanup_worker():
     logger.info(f"Resetting accounts assigned to {WORKER_ID}...")
-    worker_account_ids = await TGAccount.find({"worker_id": WORKER_ID}).project(TGAccount.id).to_list()
 
+    # Find accounts assigned to this worker
+    worker_account_ids = await TGAccount.find({"worker_id": WORKER_ID}).to_list()
     if worker_account_ids:
-        # Remove accounts from `processing_accounts` in tasks
-        await Task.find({"processing_accounts": {"$in": worker_account_ids}}).update_many(
-            {"$pull": {"processing_accounts": {"$in": worker_account_ids}}}
+
+        # Extract only the id from each account document
+        account_ids = [account.id for account in worker_account_ids]
+
+        # Remove these accounts from `processing_accounts` in tasks
+        await Task.find({"processing_accounts": {"$in": account_ids}}).update_many(
+            {"$pull": {"processing_accounts": {"$in": account_ids}}}
         )
-        logger.info(f"Removed accounts from processing in tasks: {worker_account_ids}")
+        logger.info(f"Removed accounts from processing in tasks: {account_ids}")
 
         # Reset `worker_id` in TGAccount
         await TGAccount.find({"worker_id": WORKER_ID}).update_many(
             {"$set": {"worker_id": None}}
         )
-        logger.info(f"Reset worker_id for accounts: {worker_account_ids}")
+        logger.info(f"Reset worker_id for accounts: {account_ids}")
 
-    # Stop the event loop
+
+# Graceful shutdown handler
+async def shutdown(signal, loop):
+    logger.info(f"Received exit signal {signal.name}. Shutting down gracefully...")
+
+    # Cancel all running tasks except the current one
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    for task in tasks:
+        task.cancel()
+    logger.info(f"Cancelled {len(tasks)} running tasks.")
+
+    # Wait for all tasks to finish
+    try:
+        await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info("All tasks finished.")
+    except asyncio.CancelledError:
+        logger.info("Some tasks were forcefully cancelled.")
+    except Exception as e:
+        logger.error(f"Error during task completion: {e}")
+
+    # Perform final cleanup (reset `worker_id`, `processing_accounts`, etc.)
+    await cleanup_worker()
+
+    # Stop the event loop only after cleanup is complete
     loop.stop()
     logger.info("Shutdown complete.")
 
-# Worker entry point
+
+# Main entry point to handle shutdown signals
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     signals = (signal.SIGINT, signal.SIGTERM)
+
+    # Setup shutdown signal handlers
     for s in signals:
         loop.add_signal_handler(s, lambda s=s: asyncio.create_task(shutdown(s, loop)))
+
+    # Start the worker logic
     loop.run_until_complete(worker_logic())

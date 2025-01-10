@@ -9,9 +9,9 @@ from beanie import (
     Update,
     before_event,
 )
+from src.account.models import TGAccount
 
 if TYPE_CHECKING:
-    from src.account.models import TGAccount
     from src.chat.models import TGChat
     from src.user.models import TGBot, TGUser
     from src.search.models import Search

@@ -1,7 +1,7 @@
 # from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-from beanie import BackLink, Document, Link, Update, before_event, Indexed
+from beanie import BackLink, Document, Link, Replace, Save, SaveChanges, Update, before_event, Indexed
 from pydantic import Field
 
 if TYPE_CHECKING:
@@ -66,6 +66,7 @@ class TGAccount(Document):
         name = "tg_accounts"
         use_state_management = True
 
-        @before_event(Update)
+        @before_event(Update,Save,Replace,SaveChanges)
         def update_time(self):
+            print("🔥 Before event triggered!")
             self.updated_at = datetime.now()

@@ -124,9 +124,9 @@ async def get_search_results(
         raise HTTPException(status_code=404, detail="Search not found")
 
     explores = await Task.find(
-        Task.request.id == search_id, fetch_links=True
+        Task.request.id == search_id,
     ).to_list()
-
+    
     chats = [
         link
         for explore in explores
@@ -279,7 +279,7 @@ async def get_search_results(
     for related_search in related_searches:
         related_explores.extend(
             await Task.find(
-                Task.request.id == related_search.id, fetch_links=True
+                Task.request.id == related_search.id,
             ).to_list()
         )
 

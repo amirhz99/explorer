@@ -238,13 +238,19 @@ class TaskManager:
         def is_task_eligible(task: Task) -> bool:
             return not self.account_manager.is_operation_blocked(task.task_type)
 
-        account_id = self.account_manager.account.id  # Extract the actual ID from the account BackLink object
+        account_id = (
+            self.account_manager.account.id
+        )  # Extract the actual ID from the account BackLink object
 
         # Use this account_id in the query
         tasks_cursor = Task.find(
             Task.status == TaskStatus.pending,
-            {"completed_accounts": {"$nin": [account_id]}},  # Use the account_id directly
-            {"processing_accounts": {"$nin": [account_id]}},  # Use the account_id directly
+            {
+                "completed_accounts": {"$nin": [account_id]}
+            },  # Use the account_id directly
+            {
+                "processing_accounts": {"$nin": [account_id]}
+            },  # Use the account_id directly
             {"$expr": {"$lt": [{"$size": "$processing_accounts"}, "$accounts_count"]}},
         ).sort("created_at")
 
@@ -297,6 +303,8 @@ class TaskManager:
         """
         Handles the `search` task type.
         """
+        await self.create_sub_tasks(task)
+        
         query = task.target
         client = self.account_manager.client
         search_results = await client(SearchRequest(q=query, limit=10000))
@@ -311,7 +319,6 @@ class TaskManager:
                 await task.update(Push({Task.results: tg_user}))
 
         for chat in search_results.chats:
-            await task.fetch_link("request")
             await self.create_sub_tasks(task, chat.title)
 
             full_chat = (await client(GetFullChannelRequest(channel=chat))).full_chat
@@ -319,25 +326,25 @@ class TaskManager:
             await task.update(Push({Task.results: tg_chat}))
 
     @staticmethod
-    async def create_sub_tasks(task: Task, query: str):
+    async def create_sub_tasks(task: Task, query: str = None,):
         """
         Creates subtasks for search results.
         """
 
+        await task.fetch_link("request")
+
         current_level = task.level + 1
         if current_level > task.request.depth:
             return
-
+        
         texts = []
 
-        texts.extend(generate_words_from_title(query, task.request.primary))
-        
-        if task.level == 0:
+        if query:
+            texts.extend(generate_words_from_title(query, task.request.primary))
+        elif task.level < 2:
             texts.extend(genrate_words_with_characters(task.target))
-            
-        elif task.level == 1:
-            texts.extend(genrate_words_with_characters(task.target))
-            texts.extend(generate_words_from_title(query, task.target))
+        # elif task.level == 1:
+        #     # texts.extend(generate_words_from_title(query, task.target))
 
         for text in texts:
             existing_task = await Task.find_one(

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import logging
 import os
 import signal
@@ -9,6 +10,7 @@ from src.task.models import Task
 from src.account.models import TGAccount
 from src.account.services import AccountManager
 from src.task.services import TaskManager
+import random
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -30,35 +32,45 @@ async def setup_database():
         raise
 
 
-async def get_available_accounts(limit: int = 2):
+async def get_available_accounts(limit: int = 1,):
+    
     accounts = (
         await TGAccount.find(
             {
                 "is_active": True,
                 "worker_id": None,
             },  # Only pick accounts not assigned to any worker
-            fetch_links=True,
+            # fetch_links=True,
         )
-        .limit(limit)
+        .sort("updated_at")  # Sort by 'updated_at' in ascending order (oldest to newest)
+        # .limit(limit)
         .to_list()
     )
 
+    available_accounts = []
     for account in accounts:
-        account.worker_id = WORKER_ID  # Assign this worker's ID
-        await account.save()
+        
+        logger.info(f"Check account {account.tg_id}")
+        account_manager = AccountManager(account)
+        task_manager = TaskManager(account_manager)
+        task = await task_manager.pick_pending_task()
+        if not task:
+            logger.info(f"No pending tasks for account {account.tg_id}.")
+            continue
+        else:
+            available_accounts.append(account)
+            account.worker_id = WORKER_ID  # Assign this worker's ID
+            await account.save()
+            
+            if  len(available_accounts) >= limit:
+                break
 
-    return accounts
+    return available_accounts
 
 
 # Process a single account's tasks
 async def process_account(account: TGAccount):
     account_manager = AccountManager(account)
-    task_manager = TaskManager(account_manager)
-    task = await task_manager.pick_pending_task()
-    if not task:
-        logger.info(f"No pending tasks for account {account.tg_id}.")
-        return
-
     try:
         # Connect the account
         client = await account_manager.connect()
@@ -67,13 +79,18 @@ async def process_account(account: TGAccount):
             return
 
         # Process tasks for this account
-        while True:
+        limit_iteration = 10
+        iter = 0
+        while iter < limit_iteration:
+            task_manager = TaskManager(account_manager)
             task = await task_manager.pick_pending_task()
             if not task:
                 logger.info(f"No pending tasks for account {account.tg_id}.")
-                break
+                break                
 
             await task_manager.process_task(task)
+            await asyncio.sleep(random.randint(10, 20))
+            iter += 1
 
     except Exception as e:
         logger.error(f"Error while processing account {account.tg_id}: {e}")
@@ -81,6 +98,7 @@ async def process_account(account: TGAccount):
         # Disconnect the account and release it
         await account_manager.disconnect()
         account.worker_id = None  # Reset the worker_id
+        account.updated_at = datetime.now()
         await account.save()
 
 
@@ -92,7 +110,7 @@ async def worker_logic():
         while True:
             try:
                 # Fetch 1-2 available accounts
-                available_accounts = await get_available_accounts(limit=2)
+                available_accounts = await get_available_accounts(limit=1)
                 if not available_accounts:
                     await asyncio.sleep(1)  # Wait if no accounts are available
                     continue
@@ -104,6 +122,11 @@ async def worker_logic():
                 ]
                 await asyncio.gather(*tasks)  # Wait for all account tasks to complete
                 await asyncio.sleep(0.1)  # Prevent busy looping
+                
+                await TGAccount.find({"worker_id": WORKER_ID}).update_many(
+                    {"$set": {"worker_id": None}, "$currentDate": {"updated_at": True}}
+                )
+                logger.info(f"Reset worker_id for accounts")
 
             except asyncio.CancelledError:
                 logger.info("Worker logic received cancellation request. Exiting loop.")
@@ -143,7 +166,7 @@ async def cleanup_worker():
 
         # Reset `worker_id` in TGAccount
         await TGAccount.find({"worker_id": WORKER_ID}).update_many(
-            {"$set": {"worker_id": None}}
+            {"$set": {"worker_id": None}, "$currentDate": {"updated_at": True}}
         )
         logger.info(f"Reset worker_id for accounts: {account_ids}")
 
